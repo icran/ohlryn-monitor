@@ -63,7 +63,7 @@ class TestMessageAndSend:
         assert "🟢" in msg and "🚀" in msg and "🔴" in msg and "🙏" in msg
         assert "최초" in msg and "Timeout" in msg
         assert "<pre>" in msg and "</pre>" in msg  # 고정폭 표 (텔레그램 정렬)
-        assert "-2.0~+15.0" in msg  # 기록 범위 표기
+        assert "~" not in msg  # 기록범위 미표시 (신경 안 쓰기 — 사용자 결정 2026-07-21)
 
     def test_title_icon_prefers_best(self):
         # 제목 아이콘: best 갱신 있으면 🚀, worst만 있으면 🙏, 최초만이면 ✨
