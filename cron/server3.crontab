@@ -1,0 +1,12 @@
+# server3 (172.31.31.77) cron 선언 — 버전관리. 실제 적용: crontab - < cron/server3.crontab (병합 주의)
+# 참조: $OBSIDIAN/02_PARA/02_Areas/트레이딩 시스템/ctrend 라이브 봇 운영 런북 - server3.md
+#
+# 아래는 bot-ops로 이관 예정/신규. vector-backtester scripts 참조 항목은 이관 시 경로 갱신.
+
+# 포트폴리오 SMA 시그널 변경 알림 (매시간 정각) — 신규 (bot-ops)
+# 0 * * * * cd /home/ubuntu/bot-ops && python3 -m bot_ops.alerters.portfolio_signal_alert --env-file /home/ubuntu/vector-backtester/.env_binance_sub --symbols BTC,ETH,SOL --interval 1d --sma 50 --state-file /home/ubuntu/portfolio_signal_state.json --label Portfolio >> /home/ubuntu/portfolio_signal.log 2>&1 # bot-ops-signal
+
+# --- 기존(vector-backtester scripts, 이관 대상) ---
+# 5 0 * * *  텔레그램 일일 리포트   (ctrend_telegram_report.py --baseline 50000 --label Combined)
+# 7 * * * *  ATH 체크              (ctrend_telegram_report.py --mode ath)
+# */5 * * * * watchdog             (sub_binance_watchdog.sh)  # vb-sub-watchdog

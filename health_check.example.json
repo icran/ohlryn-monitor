@@ -1,0 +1,14 @@
+{
+  "repo": "/home/ubuntu/vector-backtester",
+  "state_file": "/home/ubuntu/.bot_ops_health_state.json",
+  "ping_url": "https://hc-ping.com/<your-uuid>",
+  "alert_env": ".env_binance_main",
+  "alert_prefix": "[server1-health]",
+  "cooldown_sec": 3600,
+  "stale_minutes": 40,
+  "log_error_threshold": 5,
+  "system_limits": {"disk_pct_max": 85, "mem_avail_mb_min": 400, "swap_used_mb_max": 2048, "load1_max": 3.0},
+  "bots": [
+    {"name": "my-bot", "port": 8010, "env": ".env_example", "log": "bot.log"}
+  ]
+}
