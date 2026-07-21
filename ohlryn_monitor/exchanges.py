@@ -1,7 +1,6 @@
 """거래소 계좌 equity 조회 — I/O 어댑터 (stdlib hmac/urllib만).
 
-Cayenne `account_telegram_report.py`의 조회부 이식. 시크릿은 vector-backtester
-`.env_*` 규약(BINANCE_API_KEY/BYBIT_API_KEY ...)에서 읽는다 (notify.parse_env).
+시크릿은 env 파일(BINANCE_API_KEY/BYBIT_API_KEY ...)에서 읽는다 (notify.parse_env).
 
 - binance: GET /fapi/v2/account → totalMarginBalance (미실현 포함 총 equity)
 - bybit:   GET /v5/account/wallet-balance (UNIFIED) → totalEquity
@@ -18,7 +17,7 @@ import urllib.request
 
 
 # binance 자산별 합산 대상 스테이블 (1:1 가정). 톱레벨 totalMarginBalance는 USDT만
-# 집계해 수동 USDC 거래분이 누락됨 (Cayenne get_futures_account_info_usdc와 동일 배경).
+# 집계해 수동 USDC 거래분이 누락됨.
 _BINANCE_STABLE_ASSETS = ("USDT", "USDC", "FDUSD", "BUSD")
 
 

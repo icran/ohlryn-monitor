@@ -1,6 +1,6 @@
 """계좌 수익률 최고/최저 기록 추적 — 순수 로직 (I/O 없음).
 
-Cayenne `UTIL/account_telegram_report.py`의 로직 이식:
+규칙:
     수익률 = (현재 equity − initial) / initial × 100
     계좌별 {worst, best}를 상태에 영속, **최초/최저 갱신(🙏)/최고 갱신(🚀) 때만** 발송.
     갱신 없으면 침묵 (health_check와 동일한 '침묵=정상' 철학).

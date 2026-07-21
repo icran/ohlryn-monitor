@@ -17,17 +17,17 @@ Usage:
 Config(JSON) 예시 — 시크릿은 env 파일에 두고 경로만 참조:
 {
   "repo": "/home/ubuntu/vector-backtester",
-  "state_file": "/home/ubuntu/.ohlryn_monitor_health_state.json",
+  "state_file": "/home/ubuntu/.health_state.json",
   "ping_url": "https://hc-ping.com/<uuid>",          // 없으면 heartbeat 생략
-  "alert_env": ".env_binance_main",                   // TELEGRAM_TOKEN/CHAT_ID 출처 (repo 기준 상대)
-  "alert_prefix": "[server1-health]",
+  "alert_env": ".env_monitor",                        // TELEGRAM_TOKEN/CHAT_ID 출처 (repo 기준 상대 or 절대경로)
+  "alert_prefix": "[my-server]",
   "cooldown_sec": 3600,
   "stale_minutes": 40,
   "log_error_threshold": 5,
   "system_limits": {"disk_pct_max": 85, "mem_avail_mb_min": 400,
                      "swap_used_mb_max": 2048, "load1_max": 3.0},
   "bots": [
-    {"name": "sm-binance", "port": 8010, "env": ".env_sm...", "log": "sm_....log"}
+    {"name": "my-bot", "port": 8010, "env": ".env_mybot", "log": "my_bot.log"}
   ]
 }
 """

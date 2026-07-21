@@ -1,0 +1,24 @@
+{
+  "repo": "/home/ubuntu/vector-backtester",
+  "state_file": "/home/ubuntu/.ohlryn_monitor_health_state.json",
+  "ping_url": "https://hc-ping.com/<your-uuid>",
+  "alert_env": ".env_monitor",
+  "alert_prefix": "[my-server]",
+  "cooldown_sec": 3600,
+  "stale_minutes": 40,
+  "log_error_threshold": 5,
+  "system_limits": {
+    "disk_pct_max": 85,
+    "mem_avail_mb_min": 400,
+    "swap_used_mb_max": 2048,
+    "load1_max": 3.0
+  },
+  "bots": [
+    {
+      "name": "my-bot",
+      "port": 8010,
+      "env": ".env_mybot",
+      "log": "my_bot.log"
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-"""ohlryn_monitor.pnl 순수 로직 테스트 (Cayenne 이식 규칙 검증)."""
+"""ohlryn_monitor.pnl 순수 로직 테스트."""
 
 from ohlryn_monitor.pnl import build_summary_message, profit_rate, should_send, update_record
 

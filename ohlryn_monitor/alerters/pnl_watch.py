@@ -3,7 +3,6 @@
 
 계좌별 초기 투자금 대비 현재 equity 수익률을 조회해, **최초/최저 갱신(🙏)/
 최고 갱신(🚀) 때만** 전 계좌 요약을 텔레그램 발송. 갱신 없으면 침묵.
-Cayenne `[COIN]risk_check_main.py`(BlockingScheduler 매시 12분)의 ohlryn-monitor 이식판.
 
 순수 로직(ohlryn_monitor.pnl) + I/O(exchanges/notify/state)를 조립한다.
 
@@ -14,11 +13,11 @@ Usage:
 Config(JSON) — 시크릿은 env 파일에 두고 경로만 참조:
 {
   "repo": "/home/ubuntu/vector-backtester",
-  "state_file": "/home/ubuntu/.ohlryn_monitor_pnl_state.json",
-  "alert_env": ".env_binance_main",
-  "alert_prefix": "[server1-pnl]",
+  "state_file": "/home/ubuntu/.pnl_state.json",
+  "alert_env": ".env_monitor",
+  "alert_prefix": "[my-pnl]",
   "accounts": [
-    {"name": "main-binance", "exchange": "binance", "env": ".env_binance_main", "initial": 100000}
+    {"name": "my-binance", "exchange": "binance", "env": ".env_mybot", "initial": 10000}
   ]
 }
 """

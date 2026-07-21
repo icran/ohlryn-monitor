@@ -3,7 +3,7 @@
 vector-backtester `ctrend_telegram_report.py` 패턴을 이관하며 전송을 견고화:
 - **재시도 3회 + 지수 백오프** (일시적 네트워크 blip이 리포트를 죽이지 않게)
 - **타임아웃 30s** (느린 핸드셰이크 허용)
-- **IPv4 우선** (api.telegram.org IPv6 경로 불안정 회피 — server3 2026-07-04 사고)
+- **IPv4 우선** (일부 서버 환경에서 api.telegram.org IPv6 경로가 불안정한 사례 회피)
 
 순수 로직(재시도 오케스트레이션)과 I/O(_send_once)를 분리해, 재시도 동작은 네트워크 없이 테스트한다.
 """

@@ -1,19 +1,19 @@
 {
   "repo": "/home/ubuntu/vector-backtester",
   "state_file": "/home/ubuntu/.ohlryn_monitor_pnl_state.json",
-  "alert_env": ".env_main",
-  "alert_prefix": "[server1-pnl]",
+  "alert_env": ".env_monitor",
+  "alert_prefix": "[my-pnl]",
   "accounts": [
     {
       "name": "my-binance",
       "exchange": "binance",
-      "env": ".env_my_binance",
+      "env": ".env_mybot",
       "initial": 10000
     },
     {
       "name": "my-bybit",
       "exchange": "bybit",
-      "env": ".env_my_bybit",
+      "env": ".env_mybot_bybit",
       "initial": 5000
     }
   ],

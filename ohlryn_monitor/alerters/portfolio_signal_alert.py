@@ -8,9 +8,9 @@
 
 Usage:
   python3 -m ohlryn_monitor.alerters.portfolio_signal_alert \
-    --env-file /home/ubuntu/vector-backtester/.env_binance_sub \
+    --env-file /path/to/.env_monitor \
     --symbols BTC,ETH,SOL --interval 1d --sma 50 \
-    --state-file /home/ubuntu/portfolio_signal_state.json --label Portfolio
+    --state-file /home/ubuntu/.portfolio_signal_state.json --label Portfolio
   # 미리보기(전송 안 함):
   python3 -m ohlryn_monitor.alerters.portfolio_signal_alert --env-file ... --symbols BTC,ETH --dry-run
 """
