@@ -21,15 +21,15 @@ config/
 ## 1. 시크릿 env 만들기
 
 ```bash
-cp config/env.example .env_monitor      # 레포 루트에 (.env* 는 gitignore 됨)
+cp config/env.example config/.env_monitor      # (.env* 는 gitignore 됨)
 ```
 
-`.env_monitor`를 열어 값 입력. 알림 전용이면 텔레그램 두 줄만 있으면 됩니다. 이미 봇을 운영 중이라 봇별 env 파일(`.env_mybot` 등)에 같은 키들이 있다면 그것을 그대로 참조해도 됩니다 — config의 `env`/`alert_env` 필드는 파일 경로일 뿐입니다.
+`config/.env_monitor`를 열어 값 입력. 알림 전용이면 텔레그램 두 줄만 있으면 됩니다. 이미 봇을 운영 중이라 봇별 env 파일(`.env_mybot` 등)에 같은 키들이 있다면 그것을 그대로 참조해도 됩니다 — config의 `env`/`alert_env` 필드는 파일 경로일 뿐입니다.
 
 ## 2. health_check 설정
 
 ```bash
-cp config/health_check.example.json health_check.myserver.json
+cp config/health_check.example.json config/health_check.myserver.json
 ```
 
 핵심 필드:
@@ -40,14 +40,14 @@ cp config/health_check.example.json health_check.myserver.json
 
 **검증:**
 ```bash
-python3 -m ohlryn_monitor.alerters.health_check --config health_check.myserver.json --dry-run
+python3 -m ohlryn_monitor.alerters.health_check --config config/health_check.myserver.json --dry-run
 # → "[HH:MMZ] issues=0 (all OK)" 가 나오면 성공
 ```
 
 ## 3. pnl_watch 설정
 
 ```bash
-cp config/pnl_watch.example.json pnl_watch.myserver.json
+cp config/pnl_watch.example.json config/pnl_watch.myserver.json
 ```
 
 - `accounts[]`: 계좌마다 `{name, exchange, env, initial}` — `initial`은 수익률의 기준이 되는 초기 투자금
@@ -56,7 +56,7 @@ cp config/pnl_watch.example.json pnl_watch.myserver.json
 
 **검증:**
 ```bash
-python3 -m ohlryn_monitor.alerters.pnl_watch --config pnl_watch.myserver.json --dry-run
+python3 -m ohlryn_monitor.alerters.pnl_watch --config config/pnl_watch.myserver.json --dry-run
 # → 계좌별 equity가 조회되고 미리보기 메시지가 출력되면 성공
 ```
 

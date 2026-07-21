@@ -31,19 +31,19 @@
 ```bash
 git clone <this-repo> && cd ohlryn-monitor
 
-cp config/env.example              .env_monitor              # 시크릿 (텔레그램/거래소 키)
-cp config/health_check.example.json health_check.myserver.json
-cp config/pnl_watch.example.json    pnl_watch.myserver.json
-# → 두 json과 .env_monitor를 자기 값으로 수정 (config/README.md 참조)
+cp config/env.example               config/.env_monitor               # 시크릿 (텔레그램/거래소 키)
+cp config/health_check.example.json config/health_check.myserver.json
+cp config/pnl_watch.example.json    config/pnl_watch.myserver.json
+# → 세 파일을 자기 값으로 수정 (config/README.md 참조)
 
 # 미리보기 (전송·저장 없음)
-python3 -m ohlryn_monitor.alerters.health_check --config health_check.myserver.json --dry-run
-python3 -m ohlryn_monitor.alerters.pnl_watch    --config pnl_watch.myserver.json    --dry-run
+python3 -m ohlryn_monitor.alerters.health_check --config config/health_check.myserver.json --dry-run
+python3 -m ohlryn_monitor.alerters.pnl_watch    --config config/pnl_watch.myserver.json    --dry-run
 
 # cron 등록 (config/crontab.example 참조)
 ```
 
-시크릿은 config JSON에 직접 넣지 않고 **env 파일 경로만** 참조합니다. `.env*`·`*.myserver.json`·`*.server*.json`·상태파일은 `.gitignore`에 있어 커밋되지 않습니다. 서버가 여러 대면 서버마다 config 하나씩 만들면 됩니다 (`--config`로 주입되므로 파일명은 자유).
+시크릿은 config JSON에 직접 넣지 않고 **env 파일 경로만** 참조합니다. 실설정(`*.myserver.json`·`*.server*.json`)·`.env*`·상태파일은 `.gitignore`에 있어 커밋되지 않습니다 — **예시와 실설정이 전부 `config/` 한 곳**에 모입니다. 서버가 여러 대면 서버마다 config 하나씩 만들면 됩니다 (`--config`로 주입되므로 파일명은 자유).
 
 ## 설정 레퍼런스
 
