@@ -8,6 +8,14 @@ Cayenne `UTIL/account_telegram_report.py`의 로직 이식:
 
 from __future__ import annotations
 
+from datetime import date
+
+
+def days_since(start_date: str, today: date) -> int:
+    """기록 시작일부터 몇 일째인지 (시작일 = 1일째). 미래 시작일이면 1로 방어."""
+    d = (today - date.fromisoformat(start_date)).days + 1
+    return max(d, 1)
+
 
 def profit_rate(current: float, initial: float) -> float:
     """수익률(%) — 소수점 2자리 반올림."""
@@ -37,7 +45,7 @@ def update_record(record: dict | None, rate: float) -> tuple[dict, str]:
 _STATUS_ICON = {"first": "✨ 최초", "worst": "🙏 최저", "best": "🚀 최고", "worst/best": "🙏🚀"}
 
 
-def build_summary_message(prefix: str, kst_time: str, rows: list[dict]) -> str:
+def build_summary_message(prefix: str, kst_time: str, rows: list[dict], *, day_n: int | None = None) -> str:
     """전 계좌 요약 메시지 (순수, 텔레그램 HTML — <pre> 고정폭 표).
 
     rows: [{name, rate|None, status, record{worst,best}|None, error|None}]
@@ -49,7 +57,7 @@ def build_summary_message(prefix: str, kst_time: str, rows: list[dict]) -> str:
     )
     lines = [
         f"{head_icon} <b>{prefix} 수익률 기록 갱신</b>",
-        f"🕘 {kst_time} KST",
+        f"🕘 {kst_time} KST" + (f" · {day_n}일째" if day_n else ""),
         "",
     ]
     body = []

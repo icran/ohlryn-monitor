@@ -32,7 +32,7 @@ from datetime import datetime, timedelta, timezone
 
 from bot_ops.exchanges import fetch_equity
 from bot_ops.notify import parse_env, telegram_send
-from bot_ops.pnl import build_summary_message, profit_rate, should_send, update_record
+from bot_ops.pnl import build_summary_message, days_since, profit_rate, should_send, update_record
 from bot_ops.state import load_state, save_state
 
 
@@ -62,8 +62,11 @@ def main() -> None:
         except Exception as e:  # noqa: BLE001 — 한 계좌 실패가 나머지를 막으면 안 됨
             rows.append({"name": name, "rate": None, "error": type(e).__name__})
 
-    kst = (datetime.now(timezone.utc) + timedelta(hours=9)).strftime("%Y-%m-%d %H:%M")
-    message = build_summary_message(cfg.get("alert_prefix", "[pnl]"), kst, rows)
+    now_kst = datetime.now(timezone.utc) + timedelta(hours=9)
+    day_n = days_since(cfg["start_date"], now_kst.date()) if cfg.get("start_date") else None
+    message = build_summary_message(
+        cfg.get("alert_prefix", "[pnl]"), now_kst.strftime("%Y-%m-%d %H:%M"), rows, day_n=day_n
+    )
 
     for r in rows:
         eq = f" equity={r['equity']:,.2f}" if r.get("equity") is not None else ""

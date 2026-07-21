@@ -73,3 +73,18 @@ class TestMessageAndSend:
         assert build_summary_message("[t]", "t", rows_best).startswith("🚀")
         assert build_summary_message("[t]", "t", rows_worst).startswith("🙏")
         assert build_summary_message("[t]", "t", rows_first).startswith("✨")
+
+
+class TestDaysSince:
+    def test_start_day_is_day_one(self):
+        # 시작일 당일 = 1일째, 이후 하루마다 +1 (2026-07-17 시작 → 07-21은 5일째)
+        from datetime import date
+        from bot_ops.pnl import days_since
+        assert days_since("2026-07-17", date(2026, 7, 17)) == 1
+        assert days_since("2026-07-17", date(2026, 7, 21)) == 5
+
+    def test_header_shows_day_count(self):
+        # day_n 전달 시 헤더에 "N일째" 표기, 없으면 미표기
+        rows = [{"name": "a", "rate": 1.0, "status": "best", "record": {"worst": 0, "best": 1}}]
+        assert "5일째" in build_summary_message("[t]", "07-21 12:00", rows, day_n=5)
+        assert "일째" not in build_summary_message("[t]", "07-21 12:00", rows)
