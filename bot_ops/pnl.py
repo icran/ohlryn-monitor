@@ -34,23 +34,40 @@ def update_record(record: dict | None, rate: float) -> tuple[dict, str]:
     return new, "/".join(parts)
 
 
-_STATUS_ICON = {"first": "(최초)", "worst": "🙏", "best": "🚀", "worst/best": "🙏/🚀"}
+_STATUS_ICON = {"first": "✨ 최초", "worst": "🙏 최저", "best": "🚀 최고", "worst/best": "🙏🚀"}
 
 
 def build_summary_message(prefix: str, kst_time: str, rows: list[dict]) -> str:
-    """전 계좌 요약 메시지 (순수). rows: [{name, rate|None, status, error|None}].
+    """전 계좌 요약 메시지 (순수, 텔레그램 HTML — <pre> 고정폭 표).
 
-    rate 앞 아이콘: ≥+10% 🟢 / ≤−10% 🔴 (Cayenne 규칙 유지).
+    rows: [{name, rate|None, status, record{worst,best}|None, error|None}]
+    제목 아이콘: 갱신 종류에 따라 🚀(최고)/🙏(최저)/✨(최초). rate ≥+10% 🟢 / ≤−10% 🔴.
     """
-    lines = [f"{prefix} [{kst_time} 기준]"]
+    statuses = {r.get("status") for r in rows if r.get("rate") is not None}
+    head_icon = "🚀" if any(s and "best" in s for s in statuses) else (
+        "🙏" if any(s and "worst" in s for s in statuses) else "✨"
+    )
+    lines = [
+        f"{head_icon} <b>{prefix} 수익률 기록 갱신</b>",
+        f"🕘 {kst_time} KST",
+        "",
+    ]
+    body = []
     for r in rows:
         if r.get("rate") is None:
-            lines.append(f"{r['name']:<14}{r.get('error', '조회실패'):>10}")
+            body.append(f"{r['name']:<13} 조회실패({r.get('error', '?')})")
             continue
         rate = r["rate"]
-        icon = "🟢 " if rate >= 10 else ("🔴 " if rate <= -10 else "")
+        mood = "🟢" if rate >= 10 else ("🔴" if rate <= -10 else "  ")
         status = _STATUS_ICON.get(r.get("status", ""), "")
-        lines.append(f"{r['name']:<14}{icon}{rate:>7.2f}%  {status}")
+        rec = r.get("record") or {}
+        rng = (
+            f"{rec['worst']:+.1f}~{rec['best']:+.1f}"
+            if rec.get("worst") is not None and rec.get("best") is not None
+            else ""
+        )
+        body.append(f"{r['name']:<13}{mood}{rate:>+8.2f}%  {rng:<13}{status}")
+    lines.append("<pre>" + "\n".join(body) + "</pre>")
     return "\n".join(lines)
 
 

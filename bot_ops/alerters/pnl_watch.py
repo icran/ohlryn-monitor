@@ -58,7 +58,7 @@ def main() -> None:
             rate = profit_rate(equity, acc["initial"])
             new_rec, status = update_record(records.get(name), rate)
             records[name] = new_rec
-            rows.append({"name": name, "rate": rate, "status": status, "equity": equity})
+            rows.append({"name": name, "rate": rate, "status": status, "record": new_rec, "equity": equity})
         except Exception as e:  # noqa: BLE001 — 한 계좌 실패가 나머지를 막으면 안 됨
             rows.append({"name": name, "rate": None, "error": type(e).__name__})
 

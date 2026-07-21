@@ -49,16 +49,27 @@ class TestMessageAndSend:
         assert not should_send([{"name": "a", "rate": None, "error": "URLError"}])
 
     def test_message_icons(self):
-        # +10% 이상 🟢, −10% 이하 🔴, 상태 아이콘(🚀/🙏/최초) 표기
+        # +10% 이상 🟢, −10% 이하 🔴, 상태 아이콘(🚀/🙏/최초), 기록범위, HTML <pre> 표기
         msg = build_summary_message(
             "[t]", "2026-07-21 12:00",
             [
-                {"name": "up", "rate": 15.0, "status": "best"},
-                {"name": "down", "rate": -12.0, "status": "worst"},
-                {"name": "flat", "rate": 1.0, "status": ""},
-                {"name": "new", "rate": 0.0, "status": "first"},
+                {"name": "up", "rate": 15.0, "status": "best", "record": {"worst": -2.0, "best": 15.0}},
+                {"name": "down", "rate": -12.0, "status": "worst", "record": {"worst": -12.0, "best": 3.0}},
+                {"name": "flat", "rate": 1.0, "status": "", "record": {"worst": -1.0, "best": 2.0}},
+                {"name": "new", "rate": 0.0, "status": "first", "record": {"worst": 0.0, "best": 0.0}},
                 {"name": "bad", "rate": None, "error": "Timeout"},
             ],
         )
         assert "🟢" in msg and "🚀" in msg and "🔴" in msg and "🙏" in msg
-        assert "(최초)" in msg and "Timeout" in msg
+        assert "최초" in msg and "Timeout" in msg
+        assert "<pre>" in msg and "</pre>" in msg  # 고정폭 표 (텔레그램 정렬)
+        assert "-2.0~+15.0" in msg  # 기록 범위 표기
+
+    def test_title_icon_prefers_best(self):
+        # 제목 아이콘: best 갱신 있으면 🚀, worst만 있으면 🙏, 최초만이면 ✨
+        rows_best = [{"name": "a", "rate": 1.0, "status": "best", "record": {"worst": 0, "best": 1}}]
+        rows_worst = [{"name": "a", "rate": -1.0, "status": "worst", "record": {"worst": -1, "best": 1}}]
+        rows_first = [{"name": "a", "rate": 0.0, "status": "first", "record": {"worst": 0, "best": 0}}]
+        assert build_summary_message("[t]", "t", rows_best).startswith("🚀")
+        assert build_summary_message("[t]", "t", rows_worst).startswith("🙏")
+        assert build_summary_message("[t]", "t", rows_first).startswith("✨")
