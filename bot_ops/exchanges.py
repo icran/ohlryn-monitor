@@ -17,6 +17,11 @@ import urllib.parse
 import urllib.request
 
 
+# binance 자산별 합산 대상 스테이블 (1:1 가정). 톱레벨 totalMarginBalance는 USDT만
+# 집계해 수동 USDC 거래분이 누락됨 (Cayenne get_futures_account_info_usdc와 동일 배경).
+_BINANCE_STABLE_ASSETS = ("USDT", "USDC", "FDUSD", "BUSD")
+
+
 def fetch_equity_binance(api_key: str, secret: str, *, timeout: float = 15.0) -> float:
     q = f"timestamp={int(time.time() * 1000)}&recvWindow=5000"
     sig = hmac.new(secret.encode(), q.encode(), hashlib.sha256).hexdigest()
@@ -26,7 +31,10 @@ def fetch_equity_binance(api_key: str, secret: str, *, timeout: float = 15.0) ->
     )
     with urllib.request.urlopen(req, timeout=timeout) as r:  # noqa: S310 — 고정 호스트
         data = json.loads(r.read().decode())
-    return float(data["totalMarginBalance"])
+    # 자산별 marginBalance(지갑+UPnL) 합산 — 스테이블만 1:1로. 자산 목록 없으면 톱레벨 폴백.
+    assets = data.get("assets") or []
+    total = sum(float(a.get("marginBalance", 0)) for a in assets if a.get("asset") in _BINANCE_STABLE_ASSETS)
+    return total if total > 0 else float(data["totalMarginBalance"])
 
 
 def fetch_equity_bybit(api_key: str, secret: str, *, timeout: float = 15.0) -> float:
