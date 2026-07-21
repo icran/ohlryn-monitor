@@ -1,0 +1,10 @@
+{
+  "repo": "/home/ubuntu/vector-backtester",
+  "state_file": "/home/ubuntu/.bot_ops_pnl_state.json",
+  "alert_env": ".env_main",
+  "alert_prefix": "[server1-pnl]",
+  "accounts": [
+    {"name": "my-binance", "exchange": "binance", "env": ".env_my_binance", "initial": 10000},
+    {"name": "my-bybit", "exchange": "bybit", "env": ".env_my_bybit", "initial": 5000}
+  ]
+}
