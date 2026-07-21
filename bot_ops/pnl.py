@@ -61,11 +61,13 @@ def build_summary_message(prefix: str, kst_time: str, rows: list[dict]) -> str:
         mood = "🟢" if rate >= 10 else ("🔴" if rate <= -10 else "  ")
         status = _STATUS_ICON.get(r.get("status", ""), "")
         rec = r.get("record") or {}
-        rng = (
-            f"{rec['worst']:+.1f}~{rec['best']:+.1f}"
-            if rec.get("worst") is not None and rec.get("best") is not None
-            else ""
+        # 기록범위(역대최저~역대최고)는 의미가 생겼을 때만 표시 (초기엔 worst==best라 생략)
+        has_range = (
+            rec.get("worst") is not None
+            and rec.get("best") is not None
+            and round(rec["worst"], 2) != round(rec["best"], 2)
         )
+        rng = f"{rec['worst']:+.1f}~{rec['best']:+.1f}" if has_range else ""
         body.append(f"{r['name']:<13}{mood}{rate:>+8.2f}%  {rng:<13}{status}")
     lines.append("<pre>" + "\n".join(body) + "</pre>")
     return "\n".join(lines)
