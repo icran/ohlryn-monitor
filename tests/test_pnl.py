@@ -48,31 +48,24 @@ class TestMessageAndSend:
         # 조회 실패 계좌만으로는 발송하지 않음 (health_check가 봇 이상을 별도 담당)
         assert not should_send([{"name": "a", "rate": None, "error": "URLError"}])
 
-    def test_message_icons(self):
-        # +10% 이상 🟢, −10% 이하 🔴, 상태 아이콘(🚀/🙏/최초), 기록범위, HTML <pre> 표기
+    def test_message_minimal_mobile_format(self):
+        # 모바일 가독: <pre> 미사용, 제목 중립(아이콘 없음), 상태 아이콘은 해당 행에만, 텍스트 라벨 없음
         msg = build_summary_message(
             "[t]", "2026-07-21 12:00",
             [
-                {"name": "up", "rate": 15.0, "status": "best", "record": {"worst": -2.0, "best": 15.0}},
-                {"name": "down", "rate": -12.0, "status": "worst", "record": {"worst": -12.0, "best": 3.0}},
-                {"name": "flat", "rate": 1.0, "status": "", "record": {"worst": -1.0, "best": 2.0}},
-                {"name": "new", "rate": 0.0, "status": "first", "record": {"worst": 0.0, "best": 0.0}},
+                {"name": "up", "rate": 15.0, "status": "best"},
+                {"name": "down", "rate": -12.0, "status": "worst"},
+                {"name": "flat", "rate": 1.0, "status": ""},
+                {"name": "new", "rate": 0.0, "status": "first"},
                 {"name": "bad", "rate": None, "error": "Timeout"},
             ],
         )
-        assert "🟢" in msg and "🚀" in msg and "🔴" in msg and "🙏" in msg
-        assert "최초" in msg and "Timeout" in msg
-        assert "<pre>" in msg and "</pre>" in msg  # 고정폭 표 (텔레그램 정렬)
-        assert "~" not in msg  # 기록범위 미표시 (신경 안 쓰기 — 사용자 결정 2026-07-21)
-
-    def test_title_icon_prefers_best(self):
-        # 제목 아이콘: best 갱신 있으면 🚀, worst만 있으면 🙏, 최초만이면 ✨
-        rows_best = [{"name": "a", "rate": 1.0, "status": "best", "record": {"worst": 0, "best": 1}}]
-        rows_worst = [{"name": "a", "rate": -1.0, "status": "worst", "record": {"worst": -1, "best": 1}}]
-        rows_first = [{"name": "a", "rate": 0.0, "status": "first", "record": {"worst": 0, "best": 0}}]
-        assert build_summary_message("[t]", "t", rows_best).startswith("🚀")
-        assert build_summary_message("[t]", "t", rows_worst).startswith("🙏")
-        assert build_summary_message("[t]", "t", rows_first).startswith("✨")
+        assert msg.startswith("<b>[t] 수익률 기록 갱신</b>")  # 제목에 아이콘 없음
+        assert "<pre>" not in msg and "🕘" not in msg  # 모바일 작은 글씨·시계 아이콘 제거
+        assert "최저" not in msg and "최고" not in msg and "최초" not in msg  # 텍스트 라벨 없음
+        assert "down  -12.00%  🙏" in msg and "up  +15.00%  🚀" in msg  # 아이콘은 행 끝에만
+        assert "flat  +1.00%" in msg and "Timeout" in msg
+        assert "~" not in msg  # 기록범위 미표시 (사용자 결정 2026-07-21)
 
 
 class TestDaysSince:
@@ -85,6 +78,6 @@ class TestDaysSince:
 
     def test_header_shows_day_count(self):
         # day_n 전달 시 헤더에 "N일째" 표기, 없으면 미표기
-        rows = [{"name": "a", "rate": 1.0, "status": "best", "record": {"worst": 0, "best": 1}}]
+        rows = [{"name": "a", "rate": 1.0, "status": "best"}]
         assert "5일째" in build_summary_message("[t]", "07-21 12:00", rows, day_n=5)
         assert "일째" not in build_summary_message("[t]", "07-21 12:00", rows)

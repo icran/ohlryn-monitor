@@ -42,34 +42,26 @@ def update_record(record: dict | None, rate: float) -> tuple[dict, str]:
     return new, "/".join(parts)
 
 
-_STATUS_ICON = {"first": "✨ 최초", "worst": "🙏 최저", "best": "🚀 최고", "worst/best": "🙏🚀"}
+_STATUS_ICON = {"first": "\u2728", "worst": "\U0001F64F", "best": "\U0001F680", "worst/best": "\U0001F64F\U0001F680"}
 
 
 def build_summary_message(prefix: str, kst_time: str, rows: list[dict], *, day_n: int | None = None) -> str:
-    """전 계좌 요약 메시지 (순수, 텔레그램 HTML — <pre> 고정폭 표).
+    """전 계좌 요약 메시지 (순수, 텔레그램 HTML).
 
-    rows: [{name, rate|None, status, record{worst,best}|None, error|None}]
-    제목 아이콘: 갱신 종류에 따라 🚀(최고)/🙏(최저)/✨(최초). rate ≥+10% 🟢 / ≤−10% 🔴.
+    모바일 가독성 우선: <pre> 미사용(작은 글씨 방지), 제목은 중립(아이콘 없음),
+    상태 아이콘(🚀 최고 / 🙏 최저 / ✨ 최초)은 해당 계좌 행 끝에만 붙는다.
     """
-    statuses = {r.get("status") for r in rows if r.get("rate") is not None}
-    head_icon = "🚀" if any(s and "best" in s for s in statuses) else (
-        "🙏" if any(s and "worst" in s for s in statuses) else "✨"
-    )
     lines = [
-        f"{head_icon} <b>{prefix} 수익률 기록 갱신</b>",
-        f"🕘 {kst_time} KST" + (f" · {day_n}일째" if day_n else ""),
+        f"<b>{prefix} 수익률 기록 갱신</b>",
+        f"{kst_time} KST" + (f" · {day_n}일째" if day_n else ""),
         "",
     ]
-    body = []
     for r in rows:
         if r.get("rate") is None:
-            body.append(f"{r['name']:<13} 조회실패({r.get('error', '?')})")
+            lines.append(f"{r['name']}  조회실패({r.get('error', '?')})")
             continue
-        rate = r["rate"]
-        mood = "🟢" if rate >= 10 else ("🔴" if rate <= -10 else "  ")
-        status = _STATUS_ICON.get(r.get("status", ""), "")
-        body.append(f"{r['name']:<13}{mood}{rate:>+8.2f}%  {status}")
-    lines.append("<pre>" + "\n".join(body) + "</pre>")
+        icon = _STATUS_ICON.get(r.get("status", ""), "")
+        lines.append(f"{r['name']}  {r['rate']:+.2f}%" + (f"  {icon}" if icon else ""))
     return "\n".join(lines)
 
 
