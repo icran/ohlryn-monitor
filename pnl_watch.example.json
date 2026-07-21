@@ -1,6 +1,6 @@
 {
   "repo": "/home/ubuntu/vector-backtester",
-  "state_file": "/home/ubuntu/.bot_ops_pnl_state.json",
+  "state_file": "/home/ubuntu/.ohlryn_monitor_pnl_state.json",
   "alert_env": ".env_main",
   "alert_prefix": "[server1-pnl]",
   "accounts": [

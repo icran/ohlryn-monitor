@@ -11,3 +11,5 @@ venv/
 *.log
 .env*
 !.env.example
+# 배포별 실설정 (서버에만 둠 — example만 커밋)
+*.server*.json

@@ -7,17 +7,17 @@
     [healthchecks.io]  정상 완료 시 heartbeat ping — 침묵 = 서버 사망 알림
                        (CRITICAL 발견 시 /fail ping으로 이중 발화)
 
-순수 판정(bot_ops.health) + I/O(notify/state + 봇 /api/v1 + /proc)를 조립한다.
+순수 판정(ohlryn_monitor.health) + I/O(notify/state + 봇 /api/v1 + /proc)를 조립한다.
 경계 규칙: vector_backtester import 금지 — 봇 HTTP API·시스템 파일만.
 
 Usage:
-  python3 -m bot_ops.alerters.health_check --config /path/health_check.json
-  python3 -m bot_ops.alerters.health_check --config ... --dry-run   # 전송/ping 안 함
+  python3 -m ohlryn_monitor.alerters.health_check --config /path/health_check.json
+  python3 -m ohlryn_monitor.alerters.health_check --config ... --dry-run   # 전송/ping 안 함
 
 Config(JSON) 예시 — 시크릿은 env 파일에 두고 경로만 참조:
 {
   "repo": "/home/ubuntu/vector-backtester",
-  "state_file": "/home/ubuntu/.bot_ops_health_state.json",
+  "state_file": "/home/ubuntu/.ohlryn_monitor_health_state.json",
   "ping_url": "https://hc-ping.com/<uuid>",          // 없으면 heartbeat 생략
   "alert_env": ".env_binance_main",                   // TELEGRAM_TOKEN/CHAT_ID 출처 (repo 기준 상대)
   "alert_prefix": "[server1-health]",
@@ -42,7 +42,7 @@ import shutil
 import urllib.request
 from datetime import datetime, timezone
 
-from bot_ops.health import (
+from ohlryn_monitor.health import (
     Issue,
     bot_issues,
     count_log_errors,
@@ -52,8 +52,8 @@ from bot_ops.health import (
     plan_alerts,
     system_issues,
 )
-from bot_ops.notify import parse_env, telegram_send
-from bot_ops.state import load_state, save_state
+from ohlryn_monitor.notify import parse_env, telegram_send
+from ohlryn_monitor.state import load_state, save_state
 
 
 def fetch_bot_engines(repo: str, bot: dict) -> tuple[list[dict] | None, str | None]:

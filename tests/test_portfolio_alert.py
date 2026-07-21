@@ -2,7 +2,7 @@
 
 import unittest
 
-from bot_ops.alerters.portfolio_signal_alert import build_alert_message, evaluate
+from ohlryn_monitor.alerters.portfolio_signal_alert import build_alert_message, evaluate
 
 
 def _fake_fetch(series_by_symbol):

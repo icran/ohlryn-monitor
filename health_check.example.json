@@ -1,6 +1,6 @@
 {
   "repo": "/home/ubuntu/vector-backtester",
-  "state_file": "/home/ubuntu/.bot_ops_health_state.json",
+  "state_file": "/home/ubuntu/.ohlryn_monitor_health_state.json",
   "ping_url": "https://hc-ping.com/<your-uuid>",
   "alert_env": ".env_binance_main",
   "alert_prefix": "[server1-health]",

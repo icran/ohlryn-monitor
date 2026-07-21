@@ -4,15 +4,15 @@
 여러 티커의 가격 vs SMA 레짐(above/below)을 계산해, **뒤집힐 때만** 텔레그램 알림.
 직전 상태는 JSON에 영속. 첫 실행(상태 없음)은 무음 초기화 (ATH 알림과 동일 패턴).
 
-순수 로직(bot_ops.signals) + I/O 어댑터(prices/notify/state)를 조립한다.
+순수 로직(ohlryn_monitor.signals) + I/O 어댑터(prices/notify/state)를 조립한다.
 
 Usage:
-  python3 -m bot_ops.alerters.portfolio_signal_alert \
+  python3 -m ohlryn_monitor.alerters.portfolio_signal_alert \
     --env-file /home/ubuntu/vector-backtester/.env_binance_sub \
     --symbols BTC,ETH,SOL --interval 1d --sma 50 \
     --state-file /home/ubuntu/portfolio_signal_state.json --label Portfolio
   # 미리보기(전송 안 함):
-  python3 -m bot_ops.alerters.portfolio_signal_alert --env-file ... --symbols BTC,ETH --dry-run
+  python3 -m ohlryn_monitor.alerters.portfolio_signal_alert --env-file ... --symbols BTC,ETH --dry-run
 """
 
 from __future__ import annotations
@@ -20,10 +20,10 @@ from __future__ import annotations
 import argparse
 from datetime import datetime, timedelta, timezone
 
-from bot_ops.notify import parse_env, telegram_send
-from bot_ops.prices import fetch_closes
-from bot_ops.signals import detect_change, sma_signal
-from bot_ops.state import load_state, save_state
+from ohlryn_monitor.notify import parse_env, telegram_send
+from ohlryn_monitor.prices import fetch_closes
+from ohlryn_monitor.signals import detect_change, sma_signal
+from ohlryn_monitor.state import load_state, save_state
 
 _ARROW = {"above": "🟢 상향 돌파", "below": "🔴 하향 이탈"}
 

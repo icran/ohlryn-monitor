@@ -1,10 +1,10 @@
-"""bot_ops.notify 견고화(재시도·백오프·IPv4 우선) 테스트 — 네트워크 없이 검증."""
+"""ohlryn_monitor.notify 견고화(재시도·백오프·IPv4 우선) 테스트 — 네트워크 없이 검증."""
 
 import socket
 import unittest
 
-from bot_ops import notify
-from bot_ops.notify import prefer_ipv4, telegram_send
+from ohlryn_monitor import notify
+from ohlryn_monitor.notify import prefer_ipv4, telegram_send
 
 
 class _Flaky:

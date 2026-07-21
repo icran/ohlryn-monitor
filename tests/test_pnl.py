@@ -1,6 +1,6 @@
-"""bot_ops.pnl 순수 로직 테스트 (Cayenne 이식 규칙 검증)."""
+"""ohlryn_monitor.pnl 순수 로직 테스트 (Cayenne 이식 규칙 검증)."""
 
-from bot_ops.pnl import build_summary_message, profit_rate, should_send, update_record
+from ohlryn_monitor.pnl import build_summary_message, profit_rate, should_send, update_record
 
 
 class TestProfitRate:
@@ -79,7 +79,7 @@ class TestDaysSince:
     def test_start_day_is_day_one(self):
         # 시작일 당일 = 1일째, 이후 하루마다 +1 (2026-07-17 시작 → 07-21은 5일째)
         from datetime import date
-        from bot_ops.pnl import days_since
+        from ohlryn_monitor.pnl import days_since
         assert days_since("2026-07-17", date(2026, 7, 17)) == 1
         assert days_since("2026-07-17", date(2026, 7, 21)) == 5
 

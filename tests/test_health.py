@@ -1,8 +1,8 @@
-"""bot_ops.health 순수 판정 로직 테스트."""
+"""ohlryn_monitor.health 순수 판정 로직 테스트."""
 
 from datetime import datetime, timedelta, timezone
 
-from bot_ops.health import (
+from ohlryn_monitor.health import (
     bot_issues,
     count_log_errors,
     has_critical,

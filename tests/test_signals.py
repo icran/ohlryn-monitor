@@ -1,8 +1,8 @@
-"""bot_ops.signals 순수 로직 단위 테스트 (stdlib unittest — 의존성 0)."""
+"""ohlryn_monitor.signals 순수 로직 단위 테스트 (stdlib unittest — 의존성 0)."""
 
 import unittest
 
-from bot_ops.signals import detect_change, sma, sma_cross_signal, sma_signal
+from ohlryn_monitor.signals import detect_change, sma, sma_cross_signal, sma_signal
 
 
 class TestSma(unittest.TestCase):

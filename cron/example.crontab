@@ -1,0 +1,5 @@
+# ohlryn-monitor cron 예시 — 경로/config는 자기 환경에 맞게 수정
+# 헬스체크: 5분마다 (봇 좀비/리소스/로그 + healthchecks.io heartbeat)
+*/5 * * * * cd /path/to/ohlryn-monitor && python3 -m ohlryn_monitor.alerters.health_check --config health_check.myserver.json >> ~/health_check.log 2>&1
+# 계좌 수익률 기록 알림: 매시 12분
+12 * * * * cd /path/to/ohlryn-monitor && python3 -m ohlryn_monitor.alerters.pnl_watch --config pnl_watch.myserver.json >> ~/pnl_watch.log 2>&1

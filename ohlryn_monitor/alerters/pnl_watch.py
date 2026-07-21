@@ -3,18 +3,18 @@
 
 계좌별 초기 투자금 대비 현재 equity 수익률을 조회해, **최초/최저 갱신(🙏)/
 최고 갱신(🚀) 때만** 전 계좌 요약을 텔레그램 발송. 갱신 없으면 침묵.
-Cayenne `[COIN]risk_check_main.py`(BlockingScheduler 매시 12분)의 bot-ops 이식판.
+Cayenne `[COIN]risk_check_main.py`(BlockingScheduler 매시 12분)의 ohlryn-monitor 이식판.
 
-순수 로직(bot_ops.pnl) + I/O(exchanges/notify/state)를 조립한다.
+순수 로직(ohlryn_monitor.pnl) + I/O(exchanges/notify/state)를 조립한다.
 
 Usage:
-  python3 -m bot_ops.alerters.pnl_watch --config /path/pnl_watch.json
-  python3 -m bot_ops.alerters.pnl_watch --config ... --dry-run   # 조회만, 전송/저장 안 함
+  python3 -m ohlryn_monitor.alerters.pnl_watch --config /path/pnl_watch.json
+  python3 -m ohlryn_monitor.alerters.pnl_watch --config ... --dry-run   # 조회만, 전송/저장 안 함
 
 Config(JSON) — 시크릿은 env 파일에 두고 경로만 참조:
 {
   "repo": "/home/ubuntu/vector-backtester",
-  "state_file": "/home/ubuntu/.bot_ops_pnl_state.json",
+  "state_file": "/home/ubuntu/.ohlryn_monitor_pnl_state.json",
   "alert_env": ".env_binance_main",
   "alert_prefix": "[server1-pnl]",
   "accounts": [
@@ -30,10 +30,10 @@ import json
 import os
 from datetime import datetime, timedelta, timezone
 
-from bot_ops.exchanges import fetch_equity
-from bot_ops.notify import parse_env, telegram_send
-from bot_ops.pnl import build_summary_message, days_since, profit_rate, should_send, update_record
-from bot_ops.state import load_state, save_state
+from ohlryn_monitor.exchanges import fetch_equity
+from ohlryn_monitor.notify import parse_env, telegram_send
+from ohlryn_monitor.pnl import build_summary_message, days_since, profit_rate, should_send, update_record
+from ohlryn_monitor.state import load_state, save_state
 
 
 def main() -> None:
