@@ -105,3 +105,7 @@ python3 -m pytest tests/ -q
 - **[세팅 매뉴얼](config/README.md)** — 처음 설정하는 순서 그대로
 - **[운영 런북](docs/runbook.md)** — 배포 절차, 알림 해석표, 트러블슈팅
 - [watchdog 패턴](watchdog/README.md) — 프로세스 감시·자동 재기동
+
+## License
+
+[AGPL-3.0](LICENSE) — 자유롭게 사용·수정·재배포할 수 있으나, 수정본으로 네트워크 서비스를 제공하는 경우에도 소스 공개 의무가 있습니다.

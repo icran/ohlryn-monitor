@@ -2,6 +2,7 @@
 name = "ohlryn-monitor"
 version = "0.1.0"
 description = "라이브 트레이딩 봇 운영 보조 도구 — 모니터링·알림·watchdog (stdlib only runtime)"
+license = {file = "LICENSE"}
 requires-python = ">=3.10"
 dependencies = []  # 런타임은 표준 라이브러리만 사용
 
