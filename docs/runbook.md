@@ -31,7 +31,7 @@
 
 | 알림 | 의미 | 대응 |
 |------|------|------|
-| "check is DOWN" | **서버 통째 사망 / 네트워크 단절 / cron 정지** — health_check ping이 Grace 시간 이상 끊김 | 클라우드 콘솔에서 인스턴스 상태 확인 → 재부팅. SSH 되면 `crontab -l` 로 cron 살아있는지 확인 |
+| "check is DOWN" | **서버 사망 / 네트워크 단절 / cron 정지 / health_check crash / 텔레그램 발송 고장** — 어느 경우든 "알림 사슬이 끊겨 소식을 못 받는 상태". 봇 CRITICAL은 여기로 오지 않는다(텔레그램 상세 알림 전담) | 클라우드 콘솔에서 인스턴스 확인 → SSH 되면 `tail ~/health_check.log`로 사슬 어디가 끊겼는지 확인 |
 | "check is UP" | 복구됨 | 봇들이 전부 정상 재기동됐는지 health_check 다음 알림 여부로 확인 |
 
 ### pnl_watch (`[my-pnl]` 프리픽스)

@@ -15,7 +15,7 @@ config/
 ## 0. 사전 준비 (한 번만)
 
 1. **텔레그램 봇** — [@BotFather](https://t.me/BotFather)에서 `/newbot` → 토큰 받기. 만든 봇과 채팅을 **Start** 해두고, `https://api.telegram.org/bot<토큰>/getUpdates`에서 `chat.id` 확인.
-2. **healthchecks.io** (선택, 서버 사망 감지) — 무료 가입 → Check 생성 → ping URL 복사. **Period=5분, Grace=10분** 설정. Integrations 메뉴에서 Telegram 연결.
+2. **healthchecks.io** (선택, 서버 사망 감지) — 무료 가입 → Check 생성 → ping URL 복사. **Period=5분, Grace=5분** 설정. DOWN 알림은 "서버/알림 사슬이 죽어 소식을 못 받는 상태"만 의미한다 (봇 CRITICAL은 텔레그램 상세 알림이 전담). Integrations 메뉴에서 Telegram 연결.
 3. **거래소 API 키** (pnl_watch용) — **읽기 전용** 권한이면 충분. 서버 IP를 화이트리스트에 등록.
 
 ## 1. 시크릿 env 만들기

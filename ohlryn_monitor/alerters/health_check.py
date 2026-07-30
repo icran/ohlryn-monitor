@@ -4,8 +4,10 @@
 3계층 모니터링의 2계층:
     [watchdog]         프로세스 죽음 → 재기동 (별도)
     [이 스크립트]       봇 좀비·리소스·로그 에러 → 직접 텔레그램
-    [healthchecks.io]  정상 완료 시 heartbeat ping — 침묵 = 서버 사망 알림
-                       (CRITICAL 발견 시 /fail ping으로 이중 발화)
+    [healthchecks.io]  heartbeat ping — 침묵 = 서버/알림 사슬 사망 알림.
+                       CRITICAL이어도 텔레그램 발송에 성공했으면 정상 ping
+                       (/fail 미사용 — DOWN이 "서버 문제"로만 읽히게).
+                       텔레그램 발송 실패 시 ping 생략 → 침묵 경보로 전환.
 
 순수 판정(ohlryn_monitor.health) + I/O(notify/state + 봇 /api/v1 + /proc)를 조립한다.
 경계 규칙: vector_backtester import 금지 — 봇 HTTP API·시스템 파일만.
@@ -46,7 +48,6 @@ from ohlryn_monitor.health import (
     Issue,
     bot_issues,
     count_log_errors,
-    has_critical,
     log_issue,
     next_log_offset,
     plan_alerts,
@@ -106,9 +107,9 @@ def scan_log(repo: str, bot: dict, offsets: dict) -> int:
     return count_log_errors(chunk)
 
 
-def ping(url: str, *, fail: bool) -> None:
+def ping(url: str) -> None:
     try:
-        urllib.request.urlopen(url + ("/fail" if fail else ""), timeout=10)  # noqa: S310
+        urllib.request.urlopen(url, timeout=10)  # noqa: S310
     except Exception as e:  # noqa: BLE001 — ping 실패가 체크를 죽이면 안 됨
         print(f"heartbeat ping 실패: {e}")
 
@@ -148,6 +149,7 @@ def main() -> None:
         cooldown_sec=cfg.get("cooldown_sec", 3600),
     )
 
+    send_failures = 0
     if to_send:
         env = parse_env(os.path.join(repo, cfg["alert_env"]))
         prefix = cfg.get("alert_prefix", "[health]")
@@ -158,12 +160,16 @@ def main() -> None:
                 try:
                     telegram_send(env.get("TELEGRAM_TOKEN", ""), env.get("TELEGRAM_CHAT_ID", ""), f"{prefix} {msg}")
                 except Exception as e:  # noqa: BLE001
+                    send_failures += 1
                     print(f"telegram 발송 실패: {e}")
 
     if not args.dry_run:
         save_state(cfg["state_file"], state)
         if cfg.get("ping_url"):
-            ping(cfg["ping_url"], fail=has_critical(issues))
+            if send_failures:
+                print(f"heartbeat ping 생략: 텔레그램 발송 실패 {send_failures}건 — 침묵 경보로 전환")
+            else:
+                ping(cfg["ping_url"])
 
     ts = now.strftime("%H:%M")
     print(f"[{ts}Z] issues={len(issues)}" + (f" {[k for k, _ in issues]}" if issues else " (all OK)"))

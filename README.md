@@ -55,7 +55,7 @@ python3 -m ohlryn_monitor.alerters.pnl_watch    --config config/pnl_watch.myserv
 | `repo` | 봇 실행 디렉토리 (env·로그 파일의 기준 경로) |
 | `bots[]` | `{name, port, env, log}` — 봇별 API 포트·인증 env·로그 파일 |
 | `stale_minutes` | 좀비 판정 임계. **주의**: 봇의 `last_updated`가 캔들 *오픈시각* 라벨이면 타임프레임×2의 자연 지연이 있음 (15m봉 → 40 권장) |
-| `ping_url` | healthchecks.io ping URL (생략 시 heartbeat 없음). CRITICAL 시 `/fail`로 이중 발화 |
+| `ping_url` | healthchecks.io ping URL (생략 시 heartbeat 없음). **DOWN = 서버/알림 사슬 사망만 의미** — CRITICAL이어도 텔레그램 발송에 성공하면 정상 ping, 발송 실패 시 ping 생략(침묵 경보 전환) |
 | `cooldown_sec` | 같은 문제 재알림 억제 (기본 3600초). 해소 시 회복 알림 1회 |
 | `system_limits` | 디스크%·메모리MB·스왑MB·load 임계 |
 
