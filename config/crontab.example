@@ -3,3 +3,9 @@
 */5 * * * * cd /path/to/ohlryn-monitor && python3 -m ohlryn_monitor.alerters.health_check --config config/health_check.myserver.json >> ~/health_check.log 2>&1
 # 계좌 수익률 기록 알림: 매시 12분
 12 * * * * cd /path/to/ohlryn-monitor && python3 -m ohlryn_monitor.alerters.pnl_watch --config config/pnl_watch.myserver.json >> ~/pnl_watch.log 2>&1
+
+# ── 체결 비용 요약 (일 1회, 미국 세션 마감 후) ───────────────────────────
+# 원장 생성은 vector-backtester 담당 — 기준가 계산이 전략 규칙에 의존하므로 그쪽에 둔다.
+# 이 알리미는 생성된 JSONL만 읽는다(전략 규칙 불필요 = stdlib only 유지).
+0 21 * * 1-5 cd /home/ubuntu/vector-backtester && .venv/bin/python scripts/natas/fill_ledger.py --db hs_binance_sub.db --db hs_trade_main_binance.db >> logs/fill_ledger.log 2>&1  # fill-ledger-collect
+5 21 * * 1-5 cd /home/ubuntu/ohlryn-monitor && python3 -m ohlryn_monitor.alerters.fill_cost_watch --config config/fill_cost_watch.server1.json >> /home/ubuntu/fill_cost_watch.log 2>&1  # fill-cost-watch

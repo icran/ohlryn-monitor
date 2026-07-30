@@ -11,6 +11,7 @@
 | **health_check** | */5분 | 봇 좀비 감지(프로세스는 살았지만 데이터 처리 정체) · 시스템 리소스(디스크/메모리/스왑/load) · 로그 에러 급증 → 텔레그램. 정상이면 [healthchecks.io](https://healthchecks.io) heartbeat ping (침묵 = 서버 사망 알림) |
 | **pnl_watch** | 매시 | 계좌별 초기 투자금 대비 equity 수익률 추적. **역대 최저(🙏)/최고(🚀) 기록 갱신 때만** 전 계좌 요약 발송 |
 | **portfolio_signal_alert** | 일 1회 등 | 티커별 가격 vs SMA 레짐이 **뒤집힐 때만** 알림 |
+| **fill_cost_watch** | 일 1회 | 라이브 체결의 **수수료 + 백테스트 대비 슬리피지** 요약. 새 체결이 있을 때만 발송(상태 기반 중복 방지). 원장은 vector-backtester가 생성 |
 
 지원 거래소(equity 조회): Binance USDⓈ-M, Bybit UNIFIED. 봇 상태 조회는 봇의 HTTP API(`/api/v1`)를 사용합니다.
 
@@ -87,7 +88,7 @@ ohlryn_monitor/
   state.py      # [I/O] JSON 상태 원자적 영속
   exchanges.py  # [I/O] Binance/Bybit equity 조회
   prices.py     # [I/O] Binance public klines
-  alerters/     # 조립된 main() — health_check, pnl_watch, portfolio_signal_alert
+  alerters/     # 조립된 main() — health_check, pnl_watch, portfolio_signal_alert, fill_cost_watch
 watchdog/       # 봇 프로세스 watchdog 패턴 + 예시 스크립트
 docs/runbook.md # 운영 런북 (배포·알림 해석·트러블슈팅)
 tests/          # 순수 로직 단위 테스트

@@ -1,0 +1,9 @@
+{
+  "repo": "/home/ubuntu/vector-backtester",
+  "_comment_ledger": "미지정 시 {repo}/data/fill_ledger.jsonl. 원장은 vector-backtester가 만든다 — scripts/natas/fill_ledger.py --db <봇DB>",
+  "ledger": "/home/ubuntu/vector-backtester/data/fill_ledger.jsonl",
+  "state_file": "/home/ubuntu/.ohlryn_monitor_fill_cost_state.json",
+  "_comment_state": "이미 알린 체결 키를 기억해 중복 발송을 막는다(시간창 아님). 최근 3000건 유지",
+  "alert_env": ".env_monitor",
+  "alert_prefix": "[my-fill-cost]"
+}
