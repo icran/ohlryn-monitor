@@ -109,6 +109,52 @@ def summarize(recs: list[dict]) -> dict:
             "n": len(recs)}
 
 
+def evaluate(summary: dict, assumed_pct: float, alert_ratio: float = 1.5) -> dict:
+    """비용이 백테스트 가정 범위 안인지 판정한다.
+
+    ⚠ 판정 축은 **USDT 금액이 아니라 노셔널 대비 %**다. 절대액은 계좌 규모·레버리지에
+    좌우되므로(IBS는 10x라 같은 %도 금액이 11배로 보인다) 기준이 흔들린다.
+
+    `assumed_pct` = 백테스트가 가정한 편도 비용률(%). 나타스 캠페인 기준은 0.07%로,
+    저자가 제시한 비용 수치(#29 79.2%→53.7%, #10 70.0%→34.8%)가 모두 이 값이었다.
+    `alert_ratio` = 가정의 몇 배를 넘으면 이탈로 볼지(기본 1.5배 — 표본 노이즈 여유).
+    """
+    notional = 0.0
+    for g in (summary.get("groups") or {}).values():
+        for r in g["items"]:
+            if r.get("leg") == "entry":
+                notional += float(r.get("fill_price") or 0.0) * float(r.get("amount") or 0.0)
+
+    cost = summary.get("total_fee", 0.0) + summary.get("total_slip", 0.0)
+    if notional <= 0:
+        # 노셔널을 모르면(amount 결손) 비율 판정을 하지 않는다 — 0으로 나누지 않는다
+        return {"notional": notional, "cost_usdt": cost, "cost_pct": None,
+                "ratio": None, "assumed_pct": assumed_pct, "exceeded": False}
+
+    cost_pct = cost / notional * 100
+    ratio = cost_pct / assumed_pct if assumed_pct > 0 else None
+    return {
+        "notional": notional, "cost_usdt": cost, "cost_pct": cost_pct,
+        "ratio": ratio, "assumed_pct": assumed_pct,
+        "fee_pct": summary.get("total_fee", 0.0) / notional * 100,
+        "slip_pct": summary.get("total_slip", 0.0) / notional * 100,
+        "exceeded": bool(ratio is not None and ratio > alert_ratio),
+    }
+
+
+def should_notify(evaluation: dict, mismatches: list | None = None,
+                  always: bool = False) -> bool:
+    """알릴지 판단 — **이상 징후만**. 정상이면 침묵(monitor 철학).
+
+    `always=True`면 정상이어도 보낸다(요약을 매일 받고 싶을 때 config로 켠다).
+    """
+    if always:
+        return True
+    if evaluation.get("exceeded"):
+        return True
+    return bool(mismatches)
+
+
 def verdict(amount: float) -> str:
     """금액을 '손해/이득'으로 명시. 부호만 쓰면 규약을 아는 사람만 읽을 수 있다."""
     if abs(amount) < 0.005:
@@ -122,13 +168,44 @@ def _account(rec: dict) -> str:
     return "sub" if "sub" in str(rec.get("db", "")) else "main"
 
 
-def build_message(prefix: str, ts_label: str, summary: dict) -> str | None:
+def _verdict_header(evaluation: dict, mismatches: list | None) -> list[str]:
+    """메시지 맨 위 판정 블록 — 숫자를 읽기 전에 OK/이탈이 보여야 한다."""
+    out = []
+    cost_pct, ratio = evaluation.get("cost_pct"), evaluation.get("ratio")
+    assumed = evaluation.get("assumed_pct")
+    if cost_pct is None:
+        out.append("판정: ⚪ 비용 보류 — 노셔널 미확인(amount 결손)")
+    elif evaluation.get("exceeded"):
+        out.append(f"판정: {ADVERSE} <b>비용 이탈</b> — 편도 {cost_pct:.3f}%"
+                   f" (가정 {assumed:.2f}%의 {ratio:.1f}배)")
+    else:
+        out.append(f"판정: {FAVOR} 비용 정상 — 편도 {cost_pct:.3f}%"
+                   f" (가정 {assumed:.2f}% 이내, {ratio:.1f}배)")
+    if cost_pct is not None:
+        out.append(f"        수수료 {evaluation.get('fee_pct', 0):.3f}%"
+                   f" · 슬리피지 {evaluation.get('slip_pct', 0):.3f}%")
+    if mismatches:
+        out.append(f"      {ADVERSE} <b>진입 불일치 {len(mismatches)}건</b>")
+        for m in mismatches[:6]:
+            out.append(f"        {m.get('date', '')} {m.get('strategy_id', m.get('kind', ''))}"
+                       f" {m.get('pair', '')} — {m.get('reason', '')}")
+    else:
+        out.append(f"      {FAVOR} 진입 일치")
+    return out
+
+
+def build_message(prefix: str, ts_label: str, summary: dict,
+                  evaluation: dict | None = None,
+                  mismatches: list | None = None) -> str | None:
     """텔레그램 메시지(HTML). 알릴 체결이 없으면 **None** — 침묵 = 정상."""
     groups = summary.get("groups") or {}
     if not groups:
         return None
 
     lines = [f"{prefix} 💰 체결 비용 요약", ts_label]
+    if evaluation is not None:
+        lines.append("")
+        lines.extend(_verdict_header(evaluation, mismatches))
     for kind in sorted(groups):
         g = groups[kind]
         avg = sum(g["pcts"]) / len(g["pcts"]) if g["pcts"] else 0.0

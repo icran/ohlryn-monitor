@@ -131,3 +131,54 @@ def test_build_message_평균도_방향을_단어로():
         "[t]", "ts", summarize([_rec(leg="exit", deviation_pct=0.515, deviation_usdt=1.28)])
     )
     assert "0.515% 유리" in favor
+
+
+# ── 판정 (이상 징후만 알림) ────────────────────────────────────────────
+
+def test_evaluate_노셔널_대비_비용률():
+    """USDT 절대액은 계좌·레버리지에 좌우되므로 판정은 노셔널 대비 %로 한다."""
+    from ohlryn_monitor.fill_cost import evaluate
+    # 노셔널 = 92.15 * 46.13 ≈ 4251, 비용 = 수수료 1.701 + 슬리피지 13.346 ≈ 15.05
+    r = _rec(fill_price=92.44, amount=46.13, fees=1.701, deviation_usdt=13.346)
+    ev = evaluate(summarize([r]), assumed_pct=0.07)
+    assert ev["notional"] > 4000
+    assert 0.3 < ev["cost_pct"] < 0.4          # ≈ 0.353%
+    assert ev["ratio"] > 4                      # 가정의 4배 이상
+    assert ev["exceeded"] is True
+
+
+def test_evaluate_가정_이내면_통과():
+    """비용이 가정 안이면 이탈 아님."""
+    from ohlryn_monitor.fill_cost import evaluate
+    r = _rec(fill_price=100.0, amount=100.0, fees=1.0, deviation_usdt=1.0)  # 0.02%
+    ev = evaluate(summarize([r]), assumed_pct=0.07)
+    assert ev["exceeded"] is False
+
+
+def test_evaluate_노셔널_0이면_판정_보류():
+    """amount가 없으면(데이터 결손) 0으로 나누지 않고 판정을 보류한다."""
+    from ohlryn_monitor.fill_cost import evaluate
+    r = _rec(amount=0.0)
+    ev = evaluate(summarize([r]), assumed_pct=0.07)
+    assert ev["cost_pct"] is None and ev["exceeded"] is False
+
+
+def test_should_notify_이상만():
+    """정상이면 침묵, 비용 이탈이나 진입 불일치가 있으면 알린다."""
+    from ohlryn_monitor.fill_cost import should_notify
+    assert should_notify({"exceeded": False}, mismatches=[]) is False
+    assert should_notify({"exceeded": True}, mismatches=[]) is True
+    assert should_notify({"exceeded": False}, mismatches=[{"kind": "ibs"}]) is True
+    # always=True면 정상이어도 보낸다 (요약을 매일 받고 싶을 때)
+    assert should_notify({"exceeded": False}, mismatches=[], always=True) is True
+
+
+def test_build_message_판정_헤더():
+    """메시지 맨 위에 판정 한 줄이 온다 — 숫자를 읽기 전에 OK/이탈이 보여야 한다."""
+    from ohlryn_monitor.fill_cost import evaluate
+    r = _rec(fill_price=92.44, amount=46.13, fees=1.701, deviation_usdt=13.346)
+    s = summarize([r])
+    msg = build_message("[t]", "ts", s, evaluation=evaluate(s, assumed_pct=0.07))
+    assert "판정" in msg
+    assert "0.07%" in msg          # 가정치를 함께 보여준다
+    assert "배" in msg             # 가정 대비 배수

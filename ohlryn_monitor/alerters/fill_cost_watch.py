@@ -28,9 +28,11 @@ from datetime import datetime, timedelta, timezone
 
 from ohlryn_monitor.fill_cost import (
     build_message,
+    evaluate,
     load_ledger,
     record_key,
     select_new,
+    should_notify,
     summarize,
 )
 from ohlryn_monitor.notify import parse_env, telegram_send
@@ -38,6 +40,32 @@ from ohlryn_monitor.state import load_state, save_state
 
 # 상태에 남길 최근 키 개수 — 무한 증가를 막는다. 하루 수 건이라 넉넉하다.
 MAX_SEEN = 3000
+
+
+def load_mismatches(cfg: dict, repo: str) -> list[dict]:
+    """진입 불일치 감사 결과를 읽는다 (vector-backtester가 생성).
+
+    "백테스트 신호가 있었는데 라이브가 진입하지 않았다" / "신호가 없는데 진입했다"는
+    원장(체결 기록)만으로는 알 수 없다 — 신호 재계산이 전략 규칙에 의존하므로
+    vector-backtester가 `data/fill_audit.jsonl`로 내보내고 여기서는 읽기만 한다.
+    파일이 아직 없으면 빈 리스트(감사 미가동).
+    """
+    path = cfg.get("audit") or os.path.join(repo, "data", "fill_audit.jsonl")
+    if not os.path.exists(path):
+        return []
+    out = []
+    with open(path) as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                r = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if r.get("mismatch"):
+                out.append(r)
+    return out
 
 
 def main() -> None:
@@ -67,26 +95,41 @@ def main() -> None:
 
     now_kst = datetime.now(timezone.utc) + timedelta(hours=9)
     summary = summarize(fresh)
-    message = build_message(
-        cfg.get("alert_prefix", "[fill-cost]"), now_kst.strftime("%Y-%m-%d %H:%M"), summary
+    evaluation = evaluate(
+        summary,
+        assumed_pct=float(cfg.get("assumed_cost_pct", 0.07)),
+        alert_ratio=float(cfg.get("cost_alert_ratio", 1.5)),
     )
-    if message is None:
-        return
+    mismatches = load_mismatches(cfg, repo)
+    always = bool(cfg.get("always_notify", False))
+    send = should_notify(evaluation, mismatches, always=always)
 
+    message = build_message(
+        cfg.get("alert_prefix", "[fill-cost]"), now_kst.strftime("%Y-%m-%d %H:%M"),
+        summary, evaluation=evaluation, mismatches=mismatches,
+    )
     for r in fresh:
         print(f"    {r.get('ts_et')} {r.get('kind')} {r.get('pair')} {r.get('leg')}"
               f" dev={r.get('deviation_pct'):+.3f}%")
+    cp = evaluation.get("cost_pct")
+    print(f"  판정: 비용 {'보류' if cp is None else f'{cp:.3f}%'}"
+          f" (가정 {evaluation['assumed_pct']:.2f}%)"
+          f" · 이탈={evaluation['exceeded']} · 불일치={len(mismatches)}")
 
     if args.dry_run:
-        print(f"DRY-RUN send=True\n{message}")
+        print(f"DRY-RUN send={send}" + (f"\n{message}" if message and send else ""))
         return
 
-    env = parse_env(os.path.join(repo, cfg["alert_env"]))
-    try:
-        telegram_send(env.get("TELEGRAM_TOKEN", ""), env.get("TELEGRAM_CHAT_ID", ""), message)
-    except Exception as e:  # noqa: BLE001 — 전송 실패로 상태를 잃으면 다음 실행이 중복 발송한다
-        print(f"telegram 발송 실패: {e}")
-        return
+    # 이상 없으면 침묵하되 **상태는 저장**한다 — 안 그러면 같은 체결을 매일 다시 판정한다
+    if send and message:
+        env = parse_env(os.path.join(repo, cfg["alert_env"]))
+        try:
+            telegram_send(env.get("TELEGRAM_TOKEN", ""), env.get("TELEGRAM_CHAT_ID", ""), message)
+        except Exception as e:  # noqa: BLE001 — 전송 실패 시 상태를 남기지 않아 다음 실행이 재시도한다
+            print(f"telegram 발송 실패: {e}")
+            return
+    else:
+        print("  이상 없음 — 침묵")
 
     state["seen"] = (seen + [record_key(r) for r in fresh])[-MAX_SEEN:]
     save_state(cfg["state_file"], state)
