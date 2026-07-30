@@ -6,13 +6,13 @@
   "audit": "/home/ubuntu/vector-backtester/data/fill_audit.jsonl",
   "state_file": "/home/ubuntu/.ohlryn_monitor_fill_cost_state.json",
   "_comment_state": "이미 알린 체결 키를 기억해 중복 발송을 막는다(시간창 아님). 최근 3000건 유지",
-
   "_comment_verdict": "판정 기준 — 백테스트가 가정한 편도 비용률(%)과, 그 몇 배를 넘으면 이탈로 볼지",
   "assumed_cost_pct": 0.07,
   "cost_alert_ratio": 1.5,
   "_comment_silence": "false면 이상 징후(비용 이탈 또는 진입 불일치)가 있을 때만 발송 = 침묵이 정상",
   "always_notify": false,
-
   "alert_env": ".env_monitor",
-  "alert_prefix": "[my-fill-cost]"
+  "alert_prefix": "[my-fill-cost]",
+  "_comment_audit_days": "감사 결과 중 최근 N일만 읽는다 — 이미 처리한 과거 사고를 매일 재알림하지 않도록",
+  "audit_recent_days": 2
 }

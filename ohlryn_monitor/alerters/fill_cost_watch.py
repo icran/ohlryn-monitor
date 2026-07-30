@@ -29,6 +29,7 @@ from datetime import datetime, timedelta, timezone
 from ohlryn_monitor.fill_cost import (
     build_message,
     evaluate,
+    load_mismatches,
     load_ledger,
     record_key,
     select_new,
@@ -40,32 +41,6 @@ from ohlryn_monitor.state import load_state, save_state
 
 # 상태에 남길 최근 키 개수 — 무한 증가를 막는다. 하루 수 건이라 넉넉하다.
 MAX_SEEN = 3000
-
-
-def load_mismatches(cfg: dict, repo: str) -> list[dict]:
-    """진입 불일치 감사 결과를 읽는다 (vector-backtester가 생성).
-
-    "백테스트 신호가 있었는데 라이브가 진입하지 않았다" / "신호가 없는데 진입했다"는
-    원장(체결 기록)만으로는 알 수 없다 — 신호 재계산이 전략 규칙에 의존하므로
-    vector-backtester가 `data/fill_audit.jsonl`로 내보내고 여기서는 읽기만 한다.
-    파일이 아직 없으면 빈 리스트(감사 미가동).
-    """
-    path = cfg.get("audit") or os.path.join(repo, "data", "fill_audit.jsonl")
-    if not os.path.exists(path):
-        return []
-    out = []
-    with open(path) as f:
-        for line in f:
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                r = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-            if r.get("mismatch"):
-                out.append(r)
-    return out
 
 
 def main() -> None:
@@ -100,7 +75,8 @@ def main() -> None:
         assumed_pct=float(cfg.get("assumed_cost_pct", 0.07)),
         alert_ratio=float(cfg.get("cost_alert_ratio", 1.5)),
     )
-    mismatches = load_mismatches(cfg, repo)
+    audit_path = cfg.get("audit") or os.path.join(repo, "data", "fill_audit.jsonl")
+    mismatches = load_mismatches(audit_path, int(cfg.get("audit_recent_days", 2)))
     always = bool(cfg.get("always_notify", False))
     send = should_notify(evaluation, mismatches, always=always)
 

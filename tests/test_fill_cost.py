@@ -182,3 +182,26 @@ def test_build_message_판정_헤더():
     assert "판정" in msg
     assert "0.07%" in msg          # 가정치를 함께 보여준다
     assert "배" in msg             # 가정 대비 배수
+
+
+def test_load_mismatches_최근만(tmp_path):
+    """감사 파일에는 과거 사고 기록이 남는다 — 이미 처리된 건을 매일 다시 알리지 않도록
+    최근 N일만 읽는다."""
+    from datetime import date, timedelta
+    from ohlryn_monitor.fill_cost import load_mismatches
+    p = tmp_path / "a.jsonl"
+    old = (date.today() - timedelta(days=10)).isoformat()
+    new = (date.today() - timedelta(days=1)).isoformat()
+    p.write_text("\n".join(json.dumps(r) for r in [
+        {"date": old, "mismatch": True, "kind": "ibs", "reason": "오진입"},
+        {"date": new, "mismatch": True, "kind": "ibs", "reason": "미진입"},
+        {"date": new, "mismatch": False, "kind": "ibs", "reason": "일치"},
+    ]))
+    got = load_mismatches(str(p), recent_days=2)
+    assert [r["reason"] for r in got] == ["미진입"]
+
+
+def test_load_mismatches_없는_파일(tmp_path):
+    """감사가 아직 가동 안 됐으면 빈 목록 (알림 판정에서 무시)."""
+    from ohlryn_monitor.fill_cost import load_mismatches
+    assert load_mismatches(str(tmp_path / "none.jsonl"), recent_days=2) == []

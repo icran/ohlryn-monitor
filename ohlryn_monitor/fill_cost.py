@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import os
+from datetime import datetime, timedelta, timezone
 
 KIND_LABEL = {"ibs": "IBS(#15)", "yangbyeongi": "양변기(#29)"}
 ADVERSE, FAVOR = "🔴", "🟢"
@@ -107,6 +108,35 @@ def summarize(recs: list[dict]) -> dict:
     total_slip = sum(g["slip_usdt"] for g in groups.values())
     return {"groups": groups, "total_fee": total_fee, "total_slip": total_slip,
             "n": len(recs)}
+
+
+def load_mismatches(path: str, recent_days: int = 2) -> list[dict]:
+    """진입 불일치 감사 결과 중 **최근 것만** 읽는다 (vector-backtester가 생성).
+
+    "백테스트 신호가 있었는데 라이브가 진입하지 않았다" / "신호가 없는데 진입했다"는
+    체결 원장만으로는 알 수 없다 — 신호 재계산이 전략 규칙에 의존하므로 vector-backtester가
+    `data/fill_audit.jsonl`로 내보내고 여기서는 읽기만 한다.
+
+    ⚠ 감사 파일에는 과거 사고 기록이 영구히 남는다. 날짜 필터가 없으면 **이미 처리한 사고를
+    매일 다시 알린다**(2026-07-28 신호 오염 사고가 그런 예). cron이 일 1회이므로 기본 2일.
+    파일이 없으면 감사 미가동 → 빈 목록(알림 판정에서 무시).
+    """
+    if not os.path.exists(path):
+        return []
+    cutoff = (datetime.now(timezone.utc).date() - timedelta(days=recent_days)).isoformat()
+    out = []
+    with open(path) as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                r = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if r.get("mismatch") and str(r.get("date", "")) >= cutoff:
+                out.append(r)
+    return out
 
 
 def evaluate(summary: dict, assumed_pct: float, alert_ratio: float = 1.5) -> dict:
