@@ -205,3 +205,22 @@ def test_load_mismatches_없는_파일(tmp_path):
     """감사가 아직 가동 안 됐으면 빈 목록 (알림 판정에서 무시)."""
     from ohlryn_monitor.fill_cost import load_mismatches
     assert load_mismatches(str(tmp_path / "none.jsonl"), recent_days=2) == []
+
+
+def test_account_알려진_db는_계좌_통칭으로():
+    """건별 표기가 어느 계좌인지 즉시 읽혀야 한다 (계좌별 A/B 판독의 전제)."""
+    from ohlryn_monitor.fill_cost import _account
+    assert _account({"db": "hs_binance_sub.db"}) == "sub"
+    assert _account({"db": "hs_trade_main_binance.db"}) == "main"
+    assert _account({"db": "/home/ubuntu/vb/hs_private_copy_binance.db"}) == "hs_private_copy"
+
+
+def test_account_모르는_db가_main으로_떨어지지_않는다():
+    """부분일치 판정('sub' in db)은 새 계좌를 조용히 main으로 오표기한다.
+
+    실제로 hs_private_copy_binance.db 를 원장에 추가하자 main 거래로 보였다.
+    모르는 DB는 추측하지 말고 파일명(stem)을 그대로 드러내 이상을 눈에 띄게 한다.
+    """
+    from ohlryn_monitor.fill_cost import _account
+    assert _account({"db": "brand_new_account.db"}) == "brand_new_account"
+    assert _account({"db": ""}) == "?"

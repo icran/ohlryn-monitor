@@ -193,9 +193,25 @@ def verdict(amount: float) -> str:
             else f"{FAVOR} {abs(amount):.2f} 이득")
 
 
+# DB 파일명(stem) → 계좌 통칭. 봇이 5대라 포트·DB만으로는 어느 계좌인지 즉시 읽히지 않는다.
+ACCOUNT_BY_DB = {
+    "hs_trade_main_binance": "main",              # :8012
+    "hs_binance_sub": "sub",                      # :8014
+    "hs_private_copy_binance": "hs_private_copy",  # :8011
+    "sm_trade_private_copy_binance": "sm_private_copy",  # :8010
+}
+
+
 def _account(rec: dict) -> str:
-    """db 파일명에서 계좌 구분 — 같은 전략의 계좌별 A/B를 읽으려면 필요하다."""
-    return "sub" if "sub" in str(rec.get("db", "")) else "main"
+    """db 파일명 → 계좌 통칭. 같은 전략의 계좌별 A/B를 읽으려면 필요하다.
+
+    ⚠ 부분일치(`"sub" in db`)로 판정하지 않는다 — 표에 없는 DB가 조용히 "main"으로 떨어져
+      **다른 계좌 거래가 main 것으로 오표기**된다(hs_private_copy_binance.db 를 원장에
+      추가하면서 실제로 발생). 모르는 DB는 추측하지 말고 파일명을 그대로 드러내
+      "표에 없는 계좌가 들어왔다"는 사실이 눈에 띄게 한다.
+    """
+    stem = str(rec.get("db", "")).rsplit("/", 1)[-1].removesuffix(".db")
+    return ACCOUNT_BY_DB.get(stem, stem or "?")
 
 
 def _verdict_header(evaluation: dict, mismatches: list | None) -> list[str]:
