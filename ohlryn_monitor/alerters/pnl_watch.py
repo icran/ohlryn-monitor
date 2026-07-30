@@ -31,7 +31,14 @@ from datetime import datetime, timedelta, timezone
 
 from ohlryn_monitor.exchanges import fetch_equity
 from ohlryn_monitor.notify import parse_env, telegram_send
-from ohlryn_monitor.pnl import build_summary_message, days_since, profit_rate, should_send, update_record
+from ohlryn_monitor.pnl import (
+    DEFAULT_ALERT_STEP,
+    build_summary_message,
+    days_since,
+    profit_rate,
+    should_send,
+    update_record,
+)
 from ohlryn_monitor.state import load_state, save_state
 
 
@@ -47,6 +54,8 @@ def main() -> None:
 
     state = load_state(cfg["state_file"])
     records = state.setdefault("records", {})
+    # 알림 민감도(%p) — 이 폭만큼 기록이 움직여야 발송한다. 기본 1%p.
+    step = float(cfg.get("alert_step_pct", DEFAULT_ALERT_STEP))
 
     rows: list[dict] = []
     for acc in cfg["accounts"]:
@@ -55,7 +64,7 @@ def main() -> None:
             env = parse_env(os.path.join(repo, acc["env"]))
             equity = fetch_equity(acc["exchange"], env)
             rate = profit_rate(equity, acc["initial"])
-            new_rec, status = update_record(records.get(name), rate)
+            new_rec, status = update_record(records.get(name), rate, step=step)
             records[name] = new_rec
             rows.append({"name": name, "rate": rate, "status": status, "record": new_rec, "equity": equity})
         except Exception as e:  # noqa: BLE001 — 한 계좌 실패가 나머지를 막으면 안 됨

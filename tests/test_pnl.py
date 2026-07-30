@@ -32,6 +32,36 @@ class TestUpdateRecord:
         rec, status = update_record({"worst": -3.0, "best": 10.0}, 12.34)
         assert status == "best" and rec["best"] == 12.34
 
+    def test_sub_step_change_is_silent(self):
+        # 0.01%p 악화(-8.26 → -8.27)는 알림 없음 — 잦은 알림이 몰입을 방해한다.
+        # 단 기록 자체는 갱신해 실제 최저치를 잃지 않는다.
+        rec, status = update_record({"worst": -8.26, "best": 3.0}, -8.27)
+        assert status == "" and rec["worst"] == -8.27
+
+    def test_crossing_whole_percent_alerts(self):
+        # -8.26 → -9.01: 정수 경계(-9%)를 통과하면 알림
+        _, status = update_record({"worst": -8.26, "best": 3.0}, -9.01)
+        assert status == "worst"
+
+    def test_record_on_boundary_needs_next_step(self):
+        # 기록이 이미 정확히 -9.00이면 다음 임계는 -10 (같은 경계 재알림 방지)
+        _, s1 = update_record({"worst": -9.0, "best": 3.0}, -9.5)
+        assert s1 == ""
+        _, s2 = update_record({"worst": -9.0, "best": 3.0}, -10.0)
+        assert s2 == "worst"
+
+    def test_best_side_uses_same_step(self):
+        # 최고 기록도 동일하게 1%p 단위
+        _, s1 = update_record({"worst": -3.0, "best": 10.4}, 10.9)
+        assert s1 == ""
+        _, s2 = update_record({"worst": -3.0, "best": 10.4}, 11.0)
+        assert s2 == "best"
+
+    def test_step_is_configurable(self):
+        # step으로 민감도 조절 (0.5%p 단위)
+        _, status = update_record({"worst": -8.26, "best": 3.0}, -8.6, step=0.5)
+        assert status == "worst"
+
     def test_legacy_float_precision_compat(self):
         # 과거 상태의 긴 소수(호환성): 반올림 후 비교 — 동일값 재계산이 갱신으로 오탐되면 안 됨
         rec, status = update_record({"worst": -3.001234, "best": 10.006789}, 10.01)

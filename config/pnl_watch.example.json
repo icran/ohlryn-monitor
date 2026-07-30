@@ -3,6 +3,8 @@
   "state_file": "/home/ubuntu/.ohlryn_monitor_pnl_state.json",
   "alert_env": ".env_monitor",
   "alert_prefix": "[my-pnl]",
+  "_comment_alert_step": "기록이 이 폭(%p)만큼 움직여야 발송. 기본 1.0 = 정수 % 경계 통과 시에만",
+  "alert_step_pct": 1.0,
   "accounts": [
     {
       "name": "my-binance",
