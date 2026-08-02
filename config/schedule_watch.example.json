@@ -1,0 +1,10 @@
+{
+  "repo": "/home/ubuntu/vector-backtester",
+  "alert_env": "/home/ubuntu/ohlryn-monitor/config/.env_pnl_telegram",
+  "alert_prefix": "[server1-schedule]",
+  "state_file": "/home/ubuntu/ohlryn-monitor/schedule_watch_state.json",
+  "warn_days": [7, 3],
+  "schedules": [
+    { "name": "breakout_adjust_wfa", "csv": "strategy_configs/breakout_adjust_wfa.schedule.csv" }
+  ]
+}

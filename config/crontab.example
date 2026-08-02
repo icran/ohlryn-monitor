@@ -9,3 +9,5 @@
 # 이 알리미는 생성된 JSONL만 읽는다(전략 규칙 불필요 = stdlib only 유지).
 0 21 * * 1-5 cd /home/ubuntu/vector-backtester && .venv/bin/python scripts/natas/fill_ledger.py --db hs_binance_sub.db --db hs_trade_main_binance.db >> logs/fill_ledger.log 2>&1  # fill-ledger-collect
 5 21 * * 1-5 cd /home/ubuntu/ohlryn-monitor && python3 -m ohlryn_monitor.alerters.fill_cost_watch --config config/fill_cost_watch.server1.json >> /home/ubuntu/fill_cost_watch.log 2>&1  # fill-cost-watch
+# 파라미터 스케줄 만료 감시 (일 1회) — D-7/D-3 경고, 만료 CRITICAL
+30 0 * * * cd /home/ubuntu/ohlryn-monitor && /usr/bin/python3 -m ohlryn_monitor.alerters.schedule_watch --config config/schedule_watch.myserver.json >> /home/ubuntu/schedule_watch.log 2>&1
