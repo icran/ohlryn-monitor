@@ -13,6 +13,7 @@ def test_collect_and_render(tmp_path):
         "wd_state_dir": str(tmp_path),
         "event_driven": ["my-watchdog"],
         "descriptions": {"my-alerter": "테스트 알리미 설명"},
+        "categories": {"my-watchdog": "봇 감시", "my-alerter": "알림"},
     }
     data = collect_status(cfg, crontab_text=CRON.format(log=log, log2=log2))
     by = {j["name"]: j for j in data["jobs"]}
@@ -20,8 +21,12 @@ def test_collect_and_render(tmp_path):
     assert by["my-alerter"]["status"] == "ok"
     assert by["my-alerter"]["description"] == "테스트 알리미 설명"
 
+    assert by["my-alerter"]["schedule_human"] == "매시 :12"  # 사람이 읽는 주기
+
     html_out = render_html(data, "t")
     assert "my-alerter" in html_out and "테스트 알리미 설명" in html_out
+    assert "봇 감시" in html_out and "알림" in html_out  # 카테고리 헤더
+    assert "매시 :12" in html_out
     assert "crash-loop 차단 플래그: 없음" in html_out
 
 

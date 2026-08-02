@@ -49,12 +49,17 @@ def parse_crontab(text: str) -> list[dict]:
             first = command.split()[0]
             name = first.rsplit("/", 1)[-1]
         log_m = _LOG_RE.search(command)
+        log_path = log_m.group(1) if log_m else None
+        if log_path and not log_path.startswith("/"):
+            cd_m = re.match(r"cd\s+(\S+)\s*&&", command)
+            if cd_m:
+                log_path = cd_m.group(1).rstrip("/") + "/" + log_path
         jobs.append(
             {
                 "name": name,
                 "schedule": schedule,
                 "command": command,
-                "log": log_m.group(1) if log_m else None,
+                "log": log_path,
             }
         )
     return jobs
@@ -162,3 +167,39 @@ def _age_str(now: datetime, ts: datetime | None) -> str:
     if s < 86400:
         return f"{s // 3600}시간"
     return f"{s // 86400}일"
+
+
+# ── 사람이 읽는 주기 표기 ────────────────────────────────────────────
+
+
+def humanize_schedule(schedule: str) -> str:
+    """흔한 cron 패턴을 한국어로. 미지원 패턴은 원문 그대로."""
+    f = schedule.split()
+    if len(f) != 5:
+        return schedule
+    minute, hour, dom, month, dow = f
+    if dom != "*" or month != "*":
+        return schedule  # 월간/일자 지정은 미지원 → 원문
+
+    prefix = ""
+    if dow == "1-5":
+        prefix = "평일 "
+    elif dow != "*":
+        return schedule
+
+    # n분마다: */n 또는 a-b/n (분 필드에 step)
+    m_step = re.fullmatch(r"(?:\*|\d+-\d+)/(\d+)", minute)
+    if m_step and hour == "*" and not prefix:
+        return f"{m_step.group(1)}분마다"
+
+    if minute.isdigit() and hour == "*" and not prefix:
+        return f"매시 :{int(minute):02d}"
+
+    if minute.isdigit() and hour.isdigit():
+        h, m = int(hour), int(minute)
+        kh = (h + 9) % 24
+        next_day = "익일 " if h + 9 >= 24 else ""
+        base = prefix if prefix else "매일 "
+        return f"{base}{h:02d}:{m:02d} UTC ({next_day}{kh:02d}:{m:02d} KST)"
+
+    return schedule

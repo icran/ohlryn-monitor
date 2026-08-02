@@ -111,3 +111,40 @@ def test_judge_event_driven_never_stale():
 def test_judge_no_log_yet():
     st = judge(now=NOW, log_mtime=None, gap_min=5, log_tail="")
     assert st["status"] == "unknown"
+
+
+# ── humanize_schedule: 사람이 읽는 주기 ──────────────────────────────
+
+from ohlryn_monitor.cronstatus import humanize_schedule
+
+
+def test_humanize_every_n_min():
+    assert humanize_schedule("*/5 * * * *") == "5분마다"
+    assert humanize_schedule("1-59/5 * * * *") == "5분마다"
+
+
+def test_humanize_hourly():
+    assert humanize_schedule("12 * * * *") == "매시 :12"
+
+
+def test_humanize_daily_with_kst():
+    assert humanize_schedule("30 0 * * *") == "매일 00:30 UTC (09:30 KST)"
+    assert humanize_schedule("5 0 * * *") == "매일 00:05 UTC (09:05 KST)"
+
+
+def test_humanize_weekdays_kst_next_day():
+    # UTC 20:59 + 9h = 익일 05:59 KST
+    assert humanize_schedule("59 20 * * 1-5") == "평일 20:59 UTC (익일 05:59 KST)"
+
+
+def test_humanize_fallback_raw():
+    assert humanize_schedule("0 3 1 * *") == "0 3 1 * *"  # 월간 등 미지원 패턴은 원문
+
+
+# ── cd 접두 상대경로 로그 해석 ───────────────────────────────────────
+
+
+def test_parse_resolves_relative_log_with_cd_prefix():
+    line = "0 21 * * 1-5 cd /home/u/vb && .venv/bin/python x.py >> logs/fill.log 2>&1 # fill-job\n"
+    jobs = parse_crontab(line)
+    assert jobs[0]["log"] == "/home/u/vb/logs/fill.log"

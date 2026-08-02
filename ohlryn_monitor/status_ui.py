@@ -26,7 +26,7 @@ import subprocess
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from ohlryn_monitor.cronstatus import judge, max_gap_minutes, parse_crontab
+from ohlryn_monitor.cronstatus import humanize_schedule, judge, max_gap_minutes, parse_crontab
 from ohlryn_monitor.notify import parse_env
 
 _ICON = {"ok": "🟢", "error": "🔴", "stale": "🔴", "event": "⚪", "unknown": "❔"}
@@ -63,6 +63,7 @@ def collect_status(cfg: dict, crontab_text: str | None = None) -> dict:
             crontab_text = ""
 
     descriptions = cfg.get("descriptions", {})
+    categories = cfg.get("categories", {})
     event_driven = set(cfg.get("event_driven", []))
 
     jobs = []
@@ -74,7 +75,9 @@ def collect_status(cfg: dict, crontab_text: str | None = None) -> dict:
             {
                 "name": job["name"],
                 "description": descriptions.get(job["name"], ""),
+                "category": categories.get(job["name"], "기타"),
                 "schedule": job["schedule"],
+                "schedule_human": humanize_schedule(job["schedule"]),
                 "gap_min": gap,
                 "log": job["log"],
                 "last_run": mtime.isoformat() if mtime else None,
@@ -96,15 +99,23 @@ def collect_status(cfg: dict, crontab_text: str | None = None) -> dict:
 
 def render_html(data: dict, title: str) -> str:
     e = html.escape
-    rows = []
+    order = ["봇 감시", "알림", "데이터 수집", "기타"]
+    groups: dict = {}
     for j in data["jobs"]:
-        icon = _ICON.get(j["status"], "❔")
-        rows.append(
-            f"<tr><td>{icon}</td><td><b>{e(j['name'])}</b><br><span class=desc>{e(j['description'])}</span></td>"
-            f"<td class=mono>{e(j['schedule'])}</td>"
-            f"<td class=mono>{e(str(j['last_run'] or '-')[:16])}</td>"
-            f"<td class=mono>{e(j['detail'])}</td></tr>"
-        )
+        groups.setdefault(j.get("category", "기타"), []).append(j)
+    rows = []
+    for cat in order + [c for c in groups if c not in order]:
+        if cat not in groups:
+            continue
+        rows.append(f"<tr class=cat><td colspan=5>{e(cat)}</td></tr>")
+        for j in sorted(groups[cat], key=lambda x: x["name"]):
+            icon = _ICON.get(j["status"], "❔")
+            rows.append(
+                f"<tr><td>{icon}</td><td><b>{e(j['name'])}</b><br><span class=desc>{e(j['description'])}</span></td>"
+                f"<td class=mono title=\"{e(j['schedule'])}\">{e(j.get('schedule_human', j['schedule']))}</td>"
+                f"<td class=mono>{e(str(j['last_run'] or '-')[:16])}</td>"
+                f"<td class=mono>{e(j['detail'])}</td></tr>"
+            )
     flags_html = (
         "<p class=ok>crash-loop 차단 플래그: 없음 ✅</p>"
         if not data["crashloop_flags"]
@@ -119,7 +130,7 @@ def render_html(data: dict, title: str) -> str:
 body{{background:#0a0b0f;color:#d8dce4;font-family:'JetBrains Mono',ui-monospace,monospace;margin:2rem}}
 table{{border-collapse:collapse;width:100%}}td,th{{border-bottom:1px solid #23262e;padding:.45rem .6rem;text-align:left;vertical-align:top}}
 th{{color:#e2c044}}.mono{{font-size:.78rem;color:#9aa3b2}}.desc{{font-size:.75rem;color:#6b7484}}
-.ok{{color:#34d399}}.bad{{color:#f87171}}h1{{font-size:1.05rem}}h1 span{{color:#6b7484;font-size:.8rem}}
+.ok{{color:#34d399}}.bad{{color:#f87171}}.cat td{{color:#e2c044;font-weight:bold;border-bottom:1px solid #3a3f4b;padding-top:1rem}}h1{{font-size:1.05rem}}h1 span{{color:#6b7484;font-size:.8rem}}
 </style></head><body>
 <h1>{e(title)} <span>{e(data['now'][:19])}Z · {summary}</span> <a href=\"/\" style=\"color:#e2c044;text-decoration:none;border:1px solid #e2c044;padding:.15rem .6rem;font-size:.8rem\">↻ 새로고침</a></h1>
 <table><tr><th></th><th>작업 / 설명</th><th>주기</th><th>마지막 기록(UTC)</th><th>상태 상세</th></tr>

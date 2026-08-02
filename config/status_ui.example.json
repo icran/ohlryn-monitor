@@ -3,7 +3,14 @@
   "port": 8020,
   "env": "/home/ubuntu/ohlryn-monitor/config/.env_status_ui",
   "wd_state_dir": "/home/ubuntu/wd_state",
-  "event_driven": ["vb-sm-watchdog", "vb-hs-watchdog", "vb-main-watchdog", "vb-hs-bybit-watchdog", "vb-natas-sub-watchdog"],
+  "event_driven": [
+    "vb-sm-watchdog",
+    "vb-hs-watchdog",
+    "vb-main-watchdog",
+    "vb-hs-bybit-watchdog",
+    "vb-natas-sub-watchdog",
+    "status-ui-keepalive"
+  ],
   "descriptions": {
     "vb-health-check": "봇 좀비·리소스·로그 에러 감시 + healthchecks heartbeat",
     "vb-pnl-watch": "계좌 수익률 기록(최고/최저) 갱신 알림",
@@ -17,6 +24,23 @@
     "vb-ibs-probe-edt": "IBS 체결 프로브 (미국장 마감 EDT)",
     "vb-ibs-probe-est": "IBS 체결 프로브 (미국장 마감 EST)",
     "fill-ledger-collect": "natas 체결 원장 수집+감사",
-    "fill-cost-watch": "체결 비용 이상 감시 알림"
+    "fill-cost-watch": "체결 비용 이상 감시 알림",
+    "status-ui-keepalive": "이 대시보드 자체의 keepalive"
+  },
+  "categories": {
+    "vb-sm-watchdog": "봇 감시",
+    "vb-hs-watchdog": "봇 감시",
+    "vb-main-watchdog": "봇 감시",
+    "vb-hs-bybit-watchdog": "봇 감시",
+    "vb-natas-sub-watchdog": "봇 감시",
+    "status-ui-keepalive": "봇 감시",
+    "vb-health-check": "알림",
+    "vb-pnl-watch": "알림",
+    "vb-schedule-watch": "알림",
+    "fill-cost-watch": "알림",
+    "vb-1d-download": "데이터 수집",
+    "vb-ibs-probe-edt": "데이터 수집",
+    "vb-ibs-probe-est": "데이터 수집",
+    "fill-ledger-collect": "데이터 수집"
   }
 }
