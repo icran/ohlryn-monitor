@@ -115,13 +115,13 @@ def render_html(data: dict, title: str) -> str:
     n_bad = sum(1 for j in data["jobs"] if j["status"] in ("error", "stale"))
     summary = "모든 작업 정상 🟢" if n_bad == 0 else f"문제 작업 {n_bad}개 🔴"
     return f"""<!doctype html><html><head><meta charset=utf-8>
-<meta http-equiv=refresh content=30><title>{e(title)}</title><style>
+<title>{e(title)}</title><style>
 body{{background:#0a0b0f;color:#d8dce4;font-family:'JetBrains Mono',ui-monospace,monospace;margin:2rem}}
 table{{border-collapse:collapse;width:100%}}td,th{{border-bottom:1px solid #23262e;padding:.45rem .6rem;text-align:left;vertical-align:top}}
 th{{color:#e2c044}}.mono{{font-size:.78rem;color:#9aa3b2}}.desc{{font-size:.75rem;color:#6b7484}}
 .ok{{color:#34d399}}.bad{{color:#f87171}}h1{{font-size:1.05rem}}h1 span{{color:#6b7484;font-size:.8rem}}
 </style></head><body>
-<h1>{e(title)} <span>{e(data['now'][:19])}Z · 30초 자동 갱신 · {summary}</span></h1>
+<h1>{e(title)} <span>{e(data['now'][:19])}Z · {summary}</span> <a href=\"/\" style=\"color:#e2c044;text-decoration:none;border:1px solid #e2c044;padding:.15rem .6rem;font-size:.8rem\">↻ 새로고침</a></h1>
 <table><tr><th></th><th>작업 / 설명</th><th>주기</th><th>마지막 기록(UTC)</th><th>상태 상세</th></tr>
 {''.join(rows)}</table>
 {flags_html}
