@@ -11,5 +11,5 @@
 5 21 * * 1-5 cd /home/ubuntu/ohlryn-monitor && python3 -m ohlryn_monitor.alerters.fill_cost_watch --config config/fill_cost_watch.server1.json >> /home/ubuntu/fill_cost_watch.log 2>&1  # fill-cost-watch
 # 파라미터 스케줄 만료 감시 (일 1회) — D-7/D-3 경고, 만료 CRITICAL
 30 0 * * * cd /home/ubuntu/ohlryn-monitor && /usr/bin/python3 -m ohlryn_monitor.alerters.schedule_watch --config config/schedule_watch.myserver.json >> /home/ubuntu/schedule_watch.log 2>&1
-# 상태 대시보드 keepalive (죽어있으면 재기동) — 읽기 전용 웹 UI :8020
-*/5 * * * * pgrep -f "ohlryn_monitor.status_ui" >/dev/null || (cd /home/ubuntu/ohlryn-monitor && setsid nohup /usr/bin/python3 -m ohlryn_monitor.status_ui --config config/status_ui.myserver.json >> /home/ubuntu/status_ui.log 2>&1 &) # status-ui-keepalive
+# 상태 대시보드 keepalive — 스크립트 호출 (인라인 pgrep 금지: 자기매칭 함정)
+*/5 * * * * /home/ubuntu/ohlryn-monitor/watchdog/status_ui_keepalive.sh # status-ui-keepalive
