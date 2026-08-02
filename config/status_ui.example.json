@@ -1,0 +1,22 @@
+{
+  "title": "올린 모니터 — server1",
+  "port": 8020,
+  "env": "/home/ubuntu/ohlryn-monitor/config/.env_status_ui",
+  "wd_state_dir": "/home/ubuntu/wd_state",
+  "event_driven": ["vb-sm-watchdog", "vb-hs-watchdog", "vb-main-watchdog", "vb-hs-bybit-watchdog", "vb-natas-sub-watchdog"],
+  "descriptions": {
+    "vb-health-check": "봇 좀비·리소스·로그 에러 감시 + healthchecks heartbeat",
+    "vb-pnl-watch": "계좌 수익률 기록(최고/최저) 갱신 알림",
+    "vb-schedule-watch": "WFA 파라미터 스케줄 만료 감시 (D-7/D-3/만료)",
+    "vb-sm-watchdog": "8010 sm 봇 프로세스 감시·재기동 (crash-loop guard)",
+    "vb-hs-watchdog": "8011 hs 봇 프로세스 감시·재기동 (crash-loop guard)",
+    "vb-main-watchdog": "8012 main 봇 프로세스 감시·재기동 (crash-loop guard)",
+    "vb-hs-bybit-watchdog": "8013 bybit 봇 프로세스 감시·재기동 (crash-loop guard)",
+    "vb-natas-sub-watchdog": "8014 natas 테스트 봇 감시·재기동 (crash-loop guard)",
+    "vb-1d-download": "일봉 OHLCV 전체 페어 다운로드 (ctrend 유산)",
+    "vb-ibs-probe-edt": "IBS 체결 프로브 (미국장 마감 EDT)",
+    "vb-ibs-probe-est": "IBS 체결 프로브 (미국장 마감 EST)",
+    "fill-ledger-collect": "natas 체결 원장 수집+감사",
+    "fill-cost-watch": "체결 비용 이상 감시 알림"
+  }
+}

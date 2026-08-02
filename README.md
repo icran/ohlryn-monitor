@@ -88,7 +88,9 @@ ohlryn_monitor/
   state.py      # [I/O] JSON 상태 원자적 영속
   exchanges.py  # [I/O] Binance/Bybit equity 조회
   prices.py     # [I/O] Binance public klines
-  alerters/     # 조립된 main() — health_check, pnl_watch, portfolio_signal_alert, fill_cost_watch
+  alerters/     # 조립된 main() — health_check, pnl_watch, schedule_watch, portfolio_signal_alert
+  cronstatus.py # [순수] crontab 파싱·주기 계산·작업 상태 판정
+  status_ui.py  # [I/O] 상태 대시보드 웹 UI (stdlib http.server, basic auth, read-only), fill_cost_watch
 watchdog/       # 봇 프로세스 watchdog 패턴 + 예시 스크립트
 docs/runbook.md # 운영 런북 (배포·알림 해석·트러블슈팅)
 tests/          # 순수 로직 단위 테스트
