@@ -37,6 +37,7 @@ def plan_schedule_alerts(
     *,
     warn_days: tuple = (7, 3),
     already_sent: list,
+    action: str | None = None,
 ) -> tuple[list[str], list]:
     """만료 경고 계획.
 
@@ -63,11 +64,14 @@ def plan_schedule_alerts(
     if days_left <= 0:
         key = [end_iso, "expired"]
         if key not in sent:
-            msgs.append(
-                f"🚨 CRITICAL 스케줄 만료: {name} — {end_iso} 이후 무스케줄. "
-                f"만료 후 봇 재시작 시 파라미터가 기본값으로 회귀함(방어 필터 OFF). "
-                f"wfa.update로 스케줄을 연장할 것"
+            body = (
+                f"🚨 CRITICAL 스케줄 만료 = 갱신 가능 시점 도래: {name} — {end_iso} 윈도우 종료. "
+                f"이제 새 윈도우 재최적화가 가능함. "
+                f"⚠ 갱신 완료 전까지 봇 재시작 금지(재시작 시 파라미터 기본값 회귀)"
             )
+            if action:
+                body += f"\n▶ {action}"
+            msgs.append(body)
             sent.append(key)
         return msgs, sent
 
@@ -75,10 +79,14 @@ def plan_schedule_alerts(
         if days_left <= threshold:
             key = [end_iso, f"d{threshold}"]
             if key not in sent:
-                msgs.append(
-                    f"⚠️ WARNING 스케줄 만료 임박: {name} — D-{int(days_left)} ({end_iso} 만료). "
-                    f"만료 전에 wfa.update 실행 필요"
+                body = (
+                    f"⚠️ WARNING 스케줄 만료 임박: {name} — D-{int(days_left)} ({end_iso}). "
+                    f"만료일부터 진짜 갱신(재최적화) 가능 — 만료일에 안내가 다시 옴. "
+                    f"그때까지 봇 재시작을 계획하지 말 것"
                 )
+                if action:
+                    body += f"\n▶ 예고: {action}"
+                msgs.append(body)
                 sent.append(key)
             break  # 가장 타이트한 단계 하나만
     return msgs, sent

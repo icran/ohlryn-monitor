@@ -122,3 +122,13 @@ def test_dry_run_works_without_env_file(tmp_path, monkeypatch, capsys):
     sw.main()  # crash 없이 완료돼야
     out = capsys.readouterr().out
     assert "DRY-RUN telegram" in out and "CRITICAL" in out
+
+
+def test_action_text_included_in_alerts():
+    # config의 action 문구(실행 지시·기한)가 경고/만료 메시지에 포함된다
+    end = dt("2026-08-27T00:00:00")
+    act = 'Claude에게 "wfa 갱신해줘" (7일 내 완료 권장)'
+    msgs, _ = plan_schedule_alerts("wfa", end, dt("2026-08-28T00:00:00"), warn_days=(7, 3), already_sent=[], action=act)
+    assert len(msgs) == 1 and act in msgs[0] and "갱신 가능" in msgs[0]
+    msgs2, _ = plan_schedule_alerts("wfa", end, dt("2026-08-21T00:00:00"), warn_days=(7, 3), already_sent=[], action=act)
+    assert len(msgs2) == 1 and act in msgs2[0]

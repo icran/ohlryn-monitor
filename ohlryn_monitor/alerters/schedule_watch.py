@@ -48,7 +48,8 @@ def main() -> None:
         csv_path = os.path.join(repo, sched["csv"])
         end = last_end_from_csv(csv_path)
         msgs, sent_map[name] = plan_schedule_alerts(
-            name, end, now, warn_days=warn_days, already_sent=sent_map.get(name, [])
+            name, end, now, warn_days=warn_days, already_sent=sent_map.get(name, []),
+            action=sched.get("action"),
         )
         to_send.extend(msgs)
         if end is None:
