@@ -99,44 +99,96 @@ def collect_status(cfg: dict, crontab_text: str | None = None) -> dict:
 
 def render_html(data: dict, title: str) -> str:
     e = html.escape
+    badge = {
+        "ok": ("badge-ok", "정상"),
+        "error": ("badge-danger", "오류"),
+        "stale": ("badge-danger", "미실행 의심"),
+        "event": ("badge-info", "이벤트 대기"),
+        "unknown": ("badge-warn", "첫 실행 전"),
+    }
     order = ["봇 감시", "알림", "데이터 수집", "기타"]
     groups: dict = {}
     for j in data["jobs"]:
         groups.setdefault(j.get("category", "기타"), []).append(j)
-    rows = []
+
+    sections = []
     for cat in order + [c for c in groups if c not in order]:
         if cat not in groups:
             continue
-        rows.append(f"<tr class=cat><td colspan=5>{e(cat)}</td></tr>")
+        rows = []
         for j in sorted(groups[cat], key=lambda x: x["name"]):
-            icon = _ICON.get(j["status"], "❔")
+            cls, label = badge.get(j["status"], ("badge-warn", j["status"]))
             rows.append(
-                f"<tr><td>{icon}</td><td><b>{e(j['name'])}</b><br><span class=desc>{e(j['description'])}</span></td>"
+                f"<tr><td><span class='badge {cls}'>{label}</span></td>"
+                f"<td><div class=name>{e(j['name'])}</div><div class=desc>{e(j['description'])}</div></td>"
                 f"<td class=mono title=\"{e(j['schedule'])}\">{e(j.get('schedule_human', j['schedule']))}</td>"
                 f"<td class=mono>{e(str(j['last_run'] or '-')[:16])}</td>"
-                f"<td class=mono>{e(j['detail'])}</td></tr>"
+                f"<td class=mono detail>{e(j['detail'])}</td></tr>"
             )
-    flags_html = (
-        "<p class=ok>crash-loop 차단 플래그: 없음 ✅</p>"
-        if not data["crashloop_flags"]
-        else "".join(
-            f"<p class=bad>🚨 {e(f['flag'])} — {e(f['reason'])}</p>" for f in data["crashloop_flags"]
+        sections.append(
+            f"<div class=card><div class=card-head>{e(cat)} <span class=count>{len(groups[cat])}</span></div>"
+            f"<table><tr><th>상태</th><th>작업</th><th>주기</th><th>마지막 기록(UTC)</th><th>상세</th></tr>"
+            f"{''.join(rows)}</table></div>"
         )
-    )
+
+    if data["crashloop_flags"]:
+        flags_html = "".join(
+            f"<div class='card flag-card'>🚨 <b>crash-loop 차단</b> — {e(f['flag'])}<br><span class=mono>{e(f['reason'])}</span></div>"
+            for f in data["crashloop_flags"]
+        )
+    else:
+        flags_html = "<div class='card ok-card'>crash-loop 차단 플래그: 없음 ✅</div>"
+
     n_bad = sum(1 for j in data["jobs"] if j["status"] in ("error", "stale"))
-    summary = "모든 작업 정상 🟢" if n_bad == 0 else f"문제 작업 {n_bad}개 🔴"
-    return f"""<!doctype html><html><head><meta charset=utf-8>
-<title>{e(title)}</title><style>
-body{{background:#0a0b0f;color:#d8dce4;font-family:'JetBrains Mono',ui-monospace,monospace;margin:2rem}}
-table{{border-collapse:collapse;width:100%}}td,th{{border-bottom:1px solid #23262e;padding:.45rem .6rem;text-align:left;vertical-align:top}}
-th{{color:#e2c044}}.mono{{font-size:.78rem;color:#9aa3b2}}.desc{{font-size:.75rem;color:#6b7484}}
-.ok{{color:#34d399}}.bad{{color:#f87171}}.cat td{{color:#e2c044;font-weight:bold;border-bottom:1px solid #3a3f4b;padding-top:1rem}}h1{{font-size:1.05rem}}h1 span{{color:#6b7484;font-size:.8rem}}
+    summary = (
+        "<span class='badge badge-ok'>모든 작업 정상</span>"
+        if n_bad == 0
+        else f"<span class='badge badge-danger'>문제 작업 {n_bad}개</span>"
+    )
+    return f"""<!doctype html><html lang=ko><head><meta charset=utf-8>
+<meta name=viewport content="width=device-width,initial-scale=1"><title>{e(title)}</title><style>
+:root{{--bg:#f6f7f9;--surface:#fff;--line:#e8eaed;--text:#1b1f27;--text-sub:#6b7280;--text-faint:#9aa1ab;
+--accent:#0d9268;--accent-soft:#e6f5ef;--accent-deep:#0a7a57;--warn-soft:#fdf3e2;--warn-text:#9a6b1a;
+--info-soft:#edf1f7;--info-text:#4a5a75;--danger-soft:#fdeeee;--danger-text:#b04343;--r:14px}}
+*{{margin:0;padding:0;box-sizing:border-box}}
+body{{font-family:"Pretendard",-apple-system,BlinkMacSystemFont,system-ui,sans-serif;background:var(--bg);
+color:var(--text);line-height:1.6;-webkit-font-smoothing:antialiased}}
+.nav{{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}}
+.nav-inner{{max-width:1120px;margin:0 auto;padding:0 20px;height:64px;display:flex;align-items:center;gap:14px}}
+.logo-mark{{width:28px;height:28px;border-radius:9px;background:var(--accent);display:inline-flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:15px}}
+.logo{{font-weight:800;font-size:19px;letter-spacing:-.02em}}
+.stamp{{color:var(--text-faint);font-size:13px;flex:1}}
+.btn-refresh{{background:var(--accent);color:#fff;font-weight:700;font-size:14px;padding:9px 18px;border-radius:10px;text-decoration:none;transition:background .15s}}
+.btn-refresh:hover{{background:var(--accent-deep)}}
+.page{{max-width:1120px;margin:0 auto;padding:28px 20px 80px;display:flex;flex-direction:column;gap:18px}}
+.card{{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}}
+.card-head{{padding:14px 20px;font-weight:800;font-size:15px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px}}
+.count{{background:var(--bg);color:var(--text-sub);font-size:12px;font-weight:700;padding:1px 9px;border-radius:999px}}
+table{{border-collapse:collapse;width:100%}}
+th{{font-size:12px;color:var(--text-faint);font-weight:700;text-align:left;padding:9px 14px;border-bottom:1px solid var(--line)}}
+td{{padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:top;font-size:14px}}
+tr:last-child td{{border-bottom:none}}
+.name{{font-weight:700}}.desc{{font-size:12.5px;color:var(--text-sub)}}
+.mono{{font-family:"SF Mono","Menlo",monospace;font-size:12.5px;color:#40485a}}
+.detail{{max-width:340px;word-break:break-all;color:var(--text-faint)}}
+.badge{{display:inline-flex;align-items:center;font-size:12px;font-weight:700;padding:3px 10px;border-radius:999px;white-space:nowrap}}
+.badge-ok{{background:var(--accent-soft);color:var(--accent-deep)}}
+.badge-danger{{background:var(--danger-soft);color:var(--danger-text)}}
+.badge-info{{background:var(--info-soft);color:var(--info-text)}}
+.badge-warn{{background:var(--warn-soft);color:var(--warn-text)}}
+.ok-card{{padding:14px 20px;color:var(--accent-deep);font-weight:600}}
+.flag-card{{padding:14px 20px;background:var(--danger-soft);border-color:#f5cccc;color:var(--danger-text)}}
+@media (max-width:720px){{.detail{{display:none}}th:nth-child(5){{display:none}}}}
 </style></head><body>
-<h1>{e(title)} <span>{e(data['now'][:19])}Z · {summary}</span> <a href=\"/\" style=\"color:#e2c044;text-decoration:none;border:1px solid #e2c044;padding:.15rem .6rem;font-size:.8rem\">↻ 새로고침</a></h1>
-<table><tr><th></th><th>작업 / 설명</th><th>주기</th><th>마지막 기록(UTC)</th><th>상태 상세</th></tr>
-{''.join(rows)}</table>
+<div class=nav><div class=nav-inner>
+<span class=logo-mark>O</span><span class=logo>{e(title)}</span>
+<span class=stamp>{e(data['now'][:19])}Z · {summary}</span>
+<a class=btn-refresh href="/">↻ 새로고침</a>
+</div></div>
+<div class=page>
+{''.join(sections)}
 {flags_html}
-</body></html>"""
+</div></body></html>"""
 
 
 class _Handler(BaseHTTPRequestHandler):
