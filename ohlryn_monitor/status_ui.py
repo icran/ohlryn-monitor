@@ -4,8 +4,11 @@
 "어떤 기능(cron)이 있고, 각각 잘 돌고 있는가"를 한 화면에:
   - crontab 자동 파싱 (이름·주기·로그 경로) → 새 기능이 늘어도 등록 없이 표시
   - 로그 신선도/에러로 🟢/🔴 판정 (판정 로직: cronstatus.py — 순수, 테스트됨)
+  - 봇 현황: config "bots"(health_check와 동일 형식) 지정 시 /api/v1/bots 조회 →
+    봇별 전략(config)·페어·중지/정체 표시 (요약 로직: botstatus.py — 순수, 테스트됨)
   - crash-loop 차단 플래그 (wd_state/*.crashloop)
   - 이름·설명은 config의 descriptions 맵에서 (미등록 작업도 표시됨)
+  - 모든 섹션은 <details>로 접힘 — 문제(error/stale/down/warn) 있는 섹션만 펼쳐진 채 시작
 
 Usage:
   python3 -m ohlryn_monitor.status_ui --config config/status_ui.myserver.json
@@ -26,6 +29,8 @@ import subprocess
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+from ohlryn_monitor.alerters.health_check import fetch_bot_engines
+from ohlryn_monitor.botstatus import summarize_bot
 from ohlryn_monitor.cronstatus import humanize_schedule, judge, max_gap_minutes, parse_crontab
 from ohlryn_monitor.notify import parse_env
 
@@ -86,6 +91,16 @@ def collect_status(cfg: dict, crontab_text: str | None = None) -> dict:
             }
         )
 
+    # 봇 현황 — config "bots"(health_check와 동일 형식: name/port/env) 지정 시에만 조회
+    bots = []
+    for bot in cfg.get("bots", []):
+        engines, err = fetch_bot_engines(cfg.get("repo", ""), bot)
+        bots.append(
+            summarize_bot(
+                bot["name"], engines, now=now, stale_minutes=cfg.get("stale_minutes", 40), error=err
+            )
+        )
+
     flags = []
     for p in sorted(glob.glob(os.path.join(cfg.get("wd_state_dir", ""), "*.crashloop"))):
         try:
@@ -94,7 +109,7 @@ def collect_status(cfg: dict, crontab_text: str | None = None) -> dict:
             reason = "?"
         flags.append({"flag": p, "reason": reason})
 
-    return {"now": now.isoformat(), "jobs": jobs, "crashloop_flags": flags}
+    return {"now": now.isoformat(), "jobs": jobs, "bots": bots, "crashloop_flags": flags}
 
 
 def render_html(data: dict, title: str) -> str:
@@ -106,12 +121,70 @@ def render_html(data: dict, title: str) -> str:
         "event": ("badge-info", "이벤트 대기"),
         "unknown": ("badge-warn", "첫 실행 전"),
     }
+    def _details_card(head: str, n_items: int, n_bad: int, body: str) -> str:
+        """접히는 섹션 카드 — 문제가 있으면 펼쳐진 채 시작, 정상이면 접힘."""
+        chip = (
+            f"<span class='badge badge-danger'>문제 {n_bad}</span>"
+            if n_bad
+            else "<span class='badge badge-ok'>정상</span>"
+        )
+        open_attr = " open" if n_bad else ""
+        return (
+            f"<details class=card{open_attr}><summary class=card-head><span class=chev></span>"
+            f"{head} <span class=count>{n_items}</span><span class=spacer></span>{chip}</summary>"
+            f"{body}</details>"
+        )
+
+    sections = []
+
+    # ── 봇 현황 (config "bots" 지정 시) ─────────────────────────────
+    bots = data.get("bots") or []
+    if bots:
+        bot_badge = {
+            "ok": ("badge-ok", "정상"),
+            "down": ("badge-danger", "응답 없음"),
+            "warn": ("badge-danger", "문제"),
+        }
+        rows = []
+        for b in bots:
+            cls, label = bot_badge.get(b["status"], ("badge-warn", b["status"]))
+            strat_html = ""
+            for s in b["strategies"]:
+                icon = "🟢" if s["status"] == "ok" else "🔴"
+                pairs = ", ".join(s["pair_names"][:6]) + ("…" if len(s["pair_names"]) > 6 else "")
+                probs = ""
+                if s["stopped"]:
+                    probs += f" <span class=prob>⏸ 중지: {e(', '.join(s['stopped']))}</span>"
+                if s["stale"]:
+                    probs += f" <span class=prob>🧟 정체: {e(', '.join(s['stale']))}</span>"
+                strat_html += (
+                    f"<div class=strat>{icon} <b>{e(s['config'])}</b> "
+                    f"<span class=mono>{len(s['pair_names'])}페어 · {e(pairs)}</span>{probs}</div>"
+                )
+            rows.append(
+                f"<tr><td><span class='badge {cls}'>{label}</span></td>"
+                f"<td><div class=name>{e(b['name'])}</div></td>"
+                f"<td>{strat_html or '-'}</td>"
+                f"<td class='mono detail'>{e(b['detail'])}</td></tr>"
+            )
+        n_bot_bad = sum(1 for b in bots if b["status"] != "ok")
+        sections.append(
+            _details_card(
+                "🤖 봇 현황",
+                len(bots),
+                n_bot_bad,
+                "<table><tr><th>상태</th><th>봇</th><th>실행 중인 전략</th><th>상세</th></tr>"
+                + "".join(rows)
+                + "</table>",
+            )
+        )
+
+    # ── cron 작업 (카테고리별) ──────────────────────────────────────
     order = ["봇 감시", "알림", "데이터 수집", "기타"]
     groups: dict = {}
     for j in data["jobs"]:
         groups.setdefault(j.get("category", "기타"), []).append(j)
 
-    sections = []
     for cat in order + [c for c in groups if c not in order]:
         if cat not in groups:
             continue
@@ -125,10 +198,16 @@ def render_html(data: dict, title: str) -> str:
                 f"<td class=mono>{e(str(j['last_run'] or '-')[:16])}</td>"
                 f"<td class=mono detail>{e(j['detail'])}</td></tr>"
             )
+        n_cat_bad = sum(1 for j in groups[cat] if j["status"] in ("error", "stale"))
         sections.append(
-            f"<div class=card><div class=card-head>{e(cat)} <span class=count>{len(groups[cat])}</span></div>"
-            f"<table><tr><th>상태</th><th>작업</th><th>주기</th><th>마지막 기록(UTC)</th><th>상세</th></tr>"
-            f"{''.join(rows)}</table></div>"
+            _details_card(
+                e(cat),
+                len(groups[cat]),
+                n_cat_bad,
+                "<table><tr><th>상태</th><th>작업</th><th>주기</th><th>마지막 기록(UTC)</th><th>상세</th></tr>"
+                + "".join(rows)
+                + "</table>",
+            )
         )
 
     if data["crashloop_flags"]:
@@ -139,11 +218,13 @@ def render_html(data: dict, title: str) -> str:
     else:
         flags_html = "<div class='card ok-card'>crash-loop 차단 플래그: 없음 ✅</div>"
 
-    n_bad = sum(1 for j in data["jobs"] if j["status"] in ("error", "stale"))
+    n_bad = sum(1 for j in data["jobs"] if j["status"] in ("error", "stale")) + sum(
+        1 for b in bots if b["status"] != "ok"
+    )
     summary = (
-        "<span class='badge badge-ok'>모든 작업 정상</span>"
+        "<span class='badge badge-ok'>모두 정상</span>"
         if n_bad == 0
-        else f"<span class='badge badge-danger'>문제 작업 {n_bad}개</span>"
+        else f"<span class='badge badge-danger'>문제 {n_bad}개</span>"
     )
     return f"""<!doctype html><html lang=ko><head><meta charset=utf-8>
 <meta name=viewport content="width=device-width,initial-scale=1"><title>{e(title)}</title><style>
@@ -162,7 +243,15 @@ color:var(--text);line-height:1.6;-webkit-font-smoothing:antialiased}}
 .btn-refresh:hover{{background:var(--accent-deep)}}
 .page{{max-width:1120px;margin:0 auto;padding:28px 20px 80px;display:flex;flex-direction:column;gap:18px}}
 .card{{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}}
-.card-head{{padding:14px 20px;font-weight:800;font-size:15px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px}}
+.card-head{{padding:14px 20px;font-weight:800;font-size:15px;display:flex;align-items:center;gap:8px}}
+details.card>.card-head{{cursor:pointer;list-style:none;user-select:none}}
+details.card>.card-head::-webkit-details-marker{{display:none}}
+details.card[open]>.card-head{{border-bottom:1px solid var(--line)}}
+.chev::before{{content:'▸';color:var(--text-faint);font-size:13px}}
+details[open]>summary .chev::before{{content:'▾'}}
+.spacer{{flex:1}}
+.strat{{font-size:13.5px;padding:2px 0}}
+.prob{{color:var(--danger-text);font-size:12.5px;font-weight:700}}
 .count{{background:var(--bg);color:var(--text-sub);font-size:12px;font-weight:700;padding:1px 9px;border-radius:999px}}
 table{{border-collapse:collapse;width:100%}}
 th{{font-size:12px;color:var(--text-faint);font-weight:700;text-align:left;padding:9px 14px;border-bottom:1px solid var(--line)}}

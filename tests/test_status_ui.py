@@ -36,3 +36,40 @@ def test_crashloop_flag_shown(tmp_path):
     data = collect_status(cfg, crontab_text="")
     assert len(data["crashloop_flags"]) == 1
     assert "부팅실패" in render_html(data, "t")
+
+
+_JOB_OK = {
+    "name": "a", "description": "", "category": "알림", "schedule": "0 * * * *",
+    "schedule_human": "매시 :00", "gap_min": 60, "log": "", "last_run": None,
+    "status": "ok", "detail": "",
+}
+
+
+def test_sections_collapsed_when_ok_open_on_problem():
+    # 정상 섹션은 접힘(details, open 없음) / 문제(error·stale) 섹션은 펼쳐짐(open)
+    base = {"now": "2026-08-03T00:00:00+00:00", "jobs": [_JOB_OK], "bots": [], "crashloop_flags": []}
+    html_ok = render_html(base, "t")
+    assert "<details class=card>" in html_ok
+    assert "<details class=card open>" not in html_ok
+
+    bad = {**base, "jobs": [{**_JOB_OK, "status": "stale"}]}
+    assert "<details class=card open>" in render_html(bad, "t")
+
+
+def test_bots_section_rendered():
+    # 봇 현황: 봇 이름·전략(config)·중지 페어가 표기되고, 문제 봇이 있으면 섹션이 펼쳐짐
+    data = {
+        "now": "2026-08-03T00:00:00+00:00", "jobs": [], "crashloop_flags": [],
+        "bots": [{
+            "name": "sub 계좌 (8010)", "status": "warn", "detail": "문제 전략 1개",
+            "strategies": [{
+                "config": "alpha", "pair_names": ["BTC", "ETH"],
+                "stopped": ["BTC"], "stale": [], "status": "warn",
+            }],
+        }],
+    }
+    out = render_html(data, "t")
+    assert "봇 현황" in out
+    assert "sub 계좌 (8010)" in out and "alpha" in out
+    assert "중지" in out and "BTC" in out
+    assert "<details class=card open>" in out
