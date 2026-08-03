@@ -57,3 +57,17 @@ def test_config_name_fallback():
     engines = [{"pair": "BTC", "strategy": "S1", "is_running": True}]
     s = summarize_bot("b1", engines, now=NOW, stale_minutes=40)
     assert s["strategies"][0]["config"] == "S1"
+
+
+def test_pair_names_shortened():
+    # "BTC/USDT:USDT" 같은 거래소 표기는 베이스 심볼만 표시 (중지/정체 목록도 동일)
+    engines = [
+        _eng("BTC/USDT:USDT"),
+        _eng("ETH/USDT:USDT", running=False),
+        _eng("SOL/USDT:USDT", ago_min=120),
+    ]
+    s = summarize_bot("b1", engines, now=NOW, stale_minutes=40)
+    st = s["strategies"][0]
+    assert st["pair_names"] == ["BTC", "ETH", "SOL"]
+    assert st["stopped"] == ["ETH"]
+    assert st["stale"] == ["SOL"]

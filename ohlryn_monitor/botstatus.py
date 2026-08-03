@@ -20,6 +20,14 @@ def _parse_ts(value) -> datetime | None:
         return None
 
 
+def short_pair(pair: str) -> str:
+    """거래소 페어 표기를 표시용으로 축약: "BTC/USDT:USDT" → "BTC".
+
+    쿼트/정산 통화는 공간만 차지 — 베이스 심볼만 남긴다. 슬래시 없으면(주식 티커 등) 그대로.
+    """
+    return pair.split("/", 1)[0]
+
+
 def summarize_bot(
     name: str,
     engines: list[dict] | None,
@@ -49,7 +57,7 @@ def summarize_bot(
     for e in engines:
         key = e.get("config_name") or e.get("strategy") or "전략"
         g = groups.setdefault(key, {"config": key, "pair_names": [], "stopped": [], "stale": []})
-        pair = e.get("pair", "?")
+        pair = short_pair(e.get("pair", "?"))
         g["pair_names"].append(pair)
         if not e.get("is_running"):
             g["stopped"].append(pair)
