@@ -27,6 +27,15 @@ def profit_rate(current: float, initial: float) -> float:
     return round((current - initial) / initial * 100, 2)
 
 
+def net_transfers(transfers: list[dict] | None) -> float:
+    """외부 이체 순합 (입금 +, 출금 −).
+
+    거래 손익이 아닌 자금 이동은 equity를 흔들어 수익률로 오인된다 — 계좌 config의
+    transfers 내역 합을 equity에서 차감해 보정한다 (출금 −1000 → equity에 +1000 복원).
+    """
+    return float(sum(float(t.get("amount", 0)) for t in transfers or []))
+
+
 def _next_down(value: float, step: float) -> float:
     """value보다 **낮은** 첫 step 경계. value가 이미 경계면 한 칸 더 내려간다."""
     t = math.floor(value / step) * step

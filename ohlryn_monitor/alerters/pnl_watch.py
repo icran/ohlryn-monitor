@@ -17,9 +17,13 @@ Config(JSON) — 시크릿은 env 파일에 두고 경로만 참조:
   "alert_env": ".env_monitor",
   "alert_prefix": "[my-pnl]",
   "accounts": [
-    {"name": "my-binance", "exchange": "binance", "env": ".env_mybot", "initial": 10000}
+    {"name": "my-binance", "exchange": "binance", "env": ".env_mybot", "initial": 10000,
+     "transfers": [{"date": "2026-08-04", "amount": -1000, "memo": "출금"}]}
   ]
 }
+
+transfers: 계좌 개설 후 외부 입출금 내역 (입금 +, 출금 −). 순합을 equity에서 차감해
+수익률이 자금 이동에 흔들리지 않게 한다. 이체할 때마다 항목을 추가하면 된다.
 """
 
 from __future__ import annotations
@@ -35,6 +39,7 @@ from ohlryn_monitor.pnl import (
     DEFAULT_ALERT_STEP,
     build_summary_message,
     days_since,
+    net_transfers,
     profit_rate,
     should_send,
     update_record,
@@ -63,6 +68,8 @@ def main() -> None:
         try:
             env = parse_env(os.path.join(repo, acc["env"]))
             equity = fetch_equity(acc["exchange"], env)
+            # 외부 이체(입금 +, 출금 −)는 손익이 아님 — equity에서 차감해 보정
+            equity -= net_transfers(acc.get("transfers"))
             rate = profit_rate(equity, acc["initial"])
             new_rec, status = update_record(records.get(name), rate, step=step)
             records[name] = new_rec

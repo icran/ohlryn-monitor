@@ -1,6 +1,12 @@
 """ohlryn_monitor.pnl 순수 로직 테스트."""
 
-from ohlryn_monitor.pnl import build_summary_message, profit_rate, should_send, update_record
+from ohlryn_monitor.pnl import (
+    build_summary_message,
+    net_transfers,
+    profit_rate,
+    should_send,
+    update_record,
+)
 
 
 class TestProfitRate:
@@ -9,6 +15,26 @@ class TestProfitRate:
         assert profit_rate(110, 100) == 10.0
         assert profit_rate(100.333, 100) == 0.33
         assert profit_rate(80, 100) == -20.0
+
+
+class TestNetTransfers:
+    def test_empty_is_zero(self):
+        # 이체 내역이 없으면(None/빈 리스트) 보정 0 — 기존 config 하위호환
+        assert net_transfers(None) == 0.0
+        assert net_transfers([]) == 0.0
+
+    def test_withdrawal_restores_rate(self):
+        # 출금 -1000 후 equity가 1000 줄어도, 보정하면 이체 전과 같은 수익률
+        # (initial 10000, 실손익 +500인 계좌에서 1000 출금 → equity 9500)
+        transfers = [{"date": "2026-08-04", "amount": -1000, "memo": "이체 출금"}]
+        adj = net_transfers(transfers)
+        assert adj == -1000.0
+        assert profit_rate(9500 - adj, 10000) == 5.0
+
+    def test_deposit_and_withdrawal_sum(self):
+        # 입금 +2000, 출금 -500 → 순이체 +1500. equity에서 차감해 외부 자금 유입을 수익으로 오인하지 않음
+        transfers = [{"amount": 2000}, {"amount": -500}]
+        assert net_transfers(transfers) == 1500.0
 
 
 class TestUpdateRecord:

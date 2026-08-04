@@ -16,7 +16,11 @@
       "name": "my-bybit",
       "exchange": "bybit",
       "env": ".env_mybot_bybit",
-      "initial": 5000
+      "initial": 5000,
+      "_comment_transfers": "외부 입출금 내역 (입금 +, 출금 −) — 순합을 equity에서 차감해 이체가 손익으로 오인되지 않게 보정",
+      "transfers": [
+        {"date": "2026-08-04", "amount": -1000, "memo": "출금 예시"}
+      ]
     }
   ],
   "start_date": "2026-01-01"
