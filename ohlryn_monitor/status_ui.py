@@ -26,6 +26,7 @@ import html
 import json
 import os
 import subprocess
+import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -320,6 +321,24 @@ def collect_status(cfg: dict, crontab_text: str | None = None) -> dict:
     return {"now": now.isoformat(), "jobs": jobs, "bots": bots,
             "crashloop_flags": flags, "mdd": mdd_data,
             "refresh": collect_refresh_state(cfg)}
+
+
+def _favicon(has_problem: bool) -> str:
+    """브라우저 탭 아이콘 — 인라인 SVG 데이터 URI.
+
+    별도 엔드포인트나 바이너리 에셋 없이 HTML 한 줄로 끝낸다(stdlib·단일 파일 유지).
+    글자(`<text>`)는 OS·브라우저마다 폰트가 달라 깨지므로 **링 도형**으로 그린다.
+
+    문제가 있으면 빨강으로 바뀐다 — 탭만 보고도 알 수 있다.
+    """
+    color = "#b04343" if has_problem else "#0d9268"   # --danger-text / --accent
+    svg = (
+        "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'>"
+        f"<rect width='64' height='64' rx='16' fill='{color}'/>"
+        "<circle cx='32' cy='32' r='14' fill='none' stroke='#fff' stroke-width='8'/>"
+        "</svg>"
+    )
+    return "data:image/svg+xml," + urllib.parse.quote(svg, safe="")
 
 
 def render_html(data: dict, title: str) -> str:
@@ -718,7 +737,8 @@ def render_html(data: dict, title: str) -> str:
         else f"<span class='badge badge-danger'>문제 {n_bad}개</span>"
     )
     return f"""<!doctype html><html lang=ko><head><meta charset=utf-8>
-<meta name=viewport content="width=device-width,initial-scale=1"><title>{e(title)}</title><style>
+<meta name=viewport content="width=device-width,initial-scale=1"><title>{e(title)}</title>
+<link rel=icon href="{_favicon(n_bad > 0)}"><style>
 :root{{--bg:#f6f7f9;--surface:#fff;--line:#e8eaed;--text:#1b1f27;--text-sub:#6b7280;--text-faint:#9aa1ab;
 --accent:#0d9268;--accent-soft:#e6f5ef;--accent-deep:#0a7a57;--warn-soft:#fdf3e2;--warn-text:#9a6b1a;
 --info-soft:#edf1f7;--info-text:#4a5a75;--danger-soft:#fdeeee;--danger-text:#b04343;--r:14px}}
