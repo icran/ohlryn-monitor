@@ -1,0 +1,84 @@
+{
+  "repo": "/home/ubuntu/vector-backtester",
+  "alert_env": "/home/ubuntu/ohlryn-monitor/config/.env_pnl_telegram",
+  "alert_prefix": "[server1-stuck]",
+  "state_file": "/home/ubuntu/ohlryn-monitor/stuck_loop_watch_state.json",
+  "cooldown_minutes": 360,
+  "tail_bytes": 524288,
+  "watches": [
+    {
+      "name": "sub/min_qty",
+      "label": ":8014 (hs_binance_sub)",
+      "log": "hs_binance_sub.log",
+      "pattern": "< min_qty",
+      "window_minutes": 15,
+      "threshold": 20,
+      "action": "먼지 잔량으로 레그가 막혔을 수 있음 — 장 마감 후 bash ~/fix_dust_and_deploy.sh"
+    },
+    {
+      "name": "main/min_qty",
+      "label": ":8012 (main)",
+      "log": "hs_trade_main_binance.log",
+      "pattern": "< min_qty",
+      "window_minutes": 15,
+      "threshold": 20,
+      "action": "먼지 잔량으로 레그가 막혔을 수 있음 — 장 마감 후 bash ~/fix_dust_and_deploy.sh"
+    },
+    {
+      "name": "pcopy/min_qty",
+      "label": ":8011 (hs_private_copy)",
+      "log": "hs_private_copy_binance.log",
+      "pattern": "< min_qty",
+      "window_minutes": 15,
+      "threshold": 20,
+      "action": "먼지 잔량으로 레그가 막혔을 수 있음 — 장 마감 후 bash ~/fix_dust_and_deploy.sh"
+    },
+    {
+      "name": "sm/min_qty",
+      "label": ":8010 (sm_private_copy)",
+      "log": "sm_trade_private_copy_binance.log",
+      "pattern": "< min_qty",
+      "window_minutes": 15,
+      "threshold": 20,
+      "action": "먼지 잔량으로 레그가 막혔을 수 있음 — 장 마감 후 bash ~/fix_dust_and_deploy.sh"
+    },
+
+    {
+      "name": "sub/residual",
+      "label": ":8014 앙상블 잔차",
+      "log": "hs_binance_sub.log",
+      "pattern": "unattributed residual",
+      "window_minutes": 60,
+      "threshold": 1,
+      "action": "soft-kill 은 주문만 막고 포지션을 청산하지 않는다 — 수동 확인 필요"
+    },
+    {
+      "name": "main/residual",
+      "label": ":8012 앙상블 잔차",
+      "log": "hs_trade_main_binance.log",
+      "pattern": "unattributed residual",
+      "window_minutes": 60,
+      "threshold": 1,
+      "action": "soft-kill 은 주문만 막고 포지션을 청산하지 않는다 — 수동 확인 필요"
+    },
+    {
+      "name": "sm/residual",
+      "label": ":8010 앙상블 잔차",
+      "log": "sm_trade_private_copy_binance.log",
+      "pattern": "unattributed residual",
+      "window_minutes": 60,
+      "threshold": 1,
+      "action": "soft-kill 은 주문만 막고 포지션을 청산하지 않는다 — 수동 확인 필요"
+    },
+
+    {
+      "name": "sub/order_fail",
+      "label": ":8014 주문 전송 실패",
+      "log": "hs_binance_sub.log",
+      "pattern": "Order placement failed",
+      "window_minutes": 60,
+      "threshold": 3,
+      "action": "모호한 실패면 이중 진입 위험 — 거래소 포지션과 DB 대조 필요"
+    }
+  ]
+}
