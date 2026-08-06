@@ -56,5 +56,41 @@
       "port": 8012,
       "env": ".env_binance_main"
     }
-  ]
+  ],
+  "mdd": {
+    "_comment": [
+      "전략×티커별 낙폭 패널. 백테스트를 매일 재실행하지 않는다 —",
+      "기준선(reference)은 데이터가 갱신될 때만 vector-backtester 의",
+      "scripts/natas/research/natas_reference_mdd.py 로 재생성한다.",
+      "여기서는 봇 DB(읽기 전용)만 읽어 앵커에 이어 붙인다. 새 cron·DB 불필요."
+    ],
+    "reference": "/home/ubuntu/ohlryn-monitor/config/reference_mdd.json",
+    "accounts": [
+      {
+        "label": "8010 sm",
+        "db": "/home/ubuntu/vector-backtester/sm_trade_private_copy_binance.db"
+      },
+      {
+        "label": "8011 pcopy",
+        "db": "/home/ubuntu/vector-backtester/hs_private_copy_binance.db"
+      },
+      {
+        "label": "8012 main",
+        "db": "/home/ubuntu/vector-backtester/hs_trade_main_binance.db"
+      },
+      {
+        "label": "8014 sub",
+        "db": "/home/ubuntu/vector-backtester/hs_binance_sub.db"
+      }
+    ],
+    "_comment_base_date": "이 날짜 이후 성적을 표에 표시한다 (백테스트·계좌 손익 공통 기준일)",
+    "base_date": "2026-07-01",
+    "_comment_refresh": [
+      "기준선 갱신 버튼(POST /refresh)이 실행할 스크립트와 그 상태 파일.",
+      "미지정 시 버튼이 404 를 돌려준다. 스크립트는 최신 주가 백필 → 백테스트 재실행 →",
+      "reference 파일 교체를 하고, 진행 상태를 refresh_state 에 JSON 으로 남긴다."
+    ],
+    "refresh_script": "/home/ubuntu/refresh_reference_mdd.sh",
+    "refresh_state": "/home/ubuntu/ohlryn-monitor/reference_refresh_state.json"
+  }
 }

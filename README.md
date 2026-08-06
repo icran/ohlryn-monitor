@@ -72,6 +72,22 @@ equity는 Binance의 경우 **자산별(USDT/USDC 등) marginBalance 합산**입
 ## 설계 원칙
 
 - **경계**: 트레이딩 엔진을 import하지 않습니다. 봇 HTTP API와 거래소 REST만 소비 → 이 도구가 죽어도 거래는 무사하고, 어떤 봇 프레임워크와도 사이드카로 결합할 수 있습니다.
+### 전략·티커별 낙폭 패널
+
+대시보드는 전략이 지금 **역대 최악 대비 어디쯤**인지 보여줍니다. 기준선(16년 백테스트)은
+**vector-backtester** 가 `scripts/natas/research/natas_reference_mdd.py` 로 만들어
+`reference_mdd.json` 으로 넘겨주고, 모니터는 그 파일과 봇 DB(읽기 전용)만 읽습니다 —
+`fill_ledger.jsonl` 과 같은 경계입니다(엔진이 만들고 모니터가 읽는다).
+
+⚠ **앵커**가 핵심입니다. 라이브 곡선을 낙폭 0% 에서 시작하면 안 됩니다. 전략은 연속된
+하나의 과정이라 라이브 시작 시점의 낙폭·고점을 이어받아야 합니다 — 실측상 어떤 전략은
+라이브 시작 시점에 이미 -29.86% 낙폭이었고, 0% 로 놓으면 역대 최대 낙폭을 "여유" 로
+오독하게 됩니다.
+
+`refresh_script` 를 지정하면 화면의 **기준선 갱신 버튼**(POST `/refresh`)이 그 스크립트를
+실행합니다. 이 대시보드의 **유일한 조작 엔드포인트**이며, 입력 인자가 없고(고정 경로)
+POST 전용 + Basic Auth 로 표면을 최소화했습니다.
+
 - **순수 로직 / I/O 분리**: 판정·기록 로직(`health.py`·`pnl.py`·`signals.py`)은 네트워크 없이 단위 테스트되고, I/O 어댑터(`notify`·`state`·`exchanges`·`prices`)와 알리미(`alerters/*`)가 이를 조립합니다.
 - **stdlib only**: 런타임 의존성 0 — 파이썬 3.10+만 있으면 됩니다.
 - 텔레그램 전송은 재시도 3회 + 지수 백오프 + IPv4 우선(일부 환경의 IPv6 경로 불안정 회피).
@@ -84,13 +100,15 @@ ohlryn_monitor/
   health.py     # [순수] 좀비/리소스/로그 판정, 쿨다운·회복 알림 계획
   pnl.py        # [순수] 수익률 기록(worst/best) 추적, 메시지 조립
   signals.py    # [순수] SMA 레짐 시그널
+  mdd.py        # [순수] 전략×티커 낙폭 — 라이브를 백테스트 기준선에 이어 붙인다(앵커)
+  stuck_loop.py # [순수] 같은 경고 반복 감지 — 조용히 멈춘 레그를 드러낸다
   notify.py     # [I/O] env 파싱, 텔레그램 전송(재시도)
   state.py      # [I/O] JSON 상태 원자적 영속
   exchanges.py  # [I/O] Binance/Bybit equity 조회
   prices.py     # [I/O] Binance public klines
   alerters/     # 조립된 main() — health_check, pnl_watch, schedule_watch, portfolio_signal_alert
   cronstatus.py # [순수] crontab 파싱·주기 계산·작업 상태 판정
-  status_ui.py  # [I/O] 상태 대시보드 웹 UI (stdlib http.server, basic auth, read-only), fill_cost_watch
+  status_ui.py  # [I/O] 상태 대시보드 웹 UI (stdlib http.server, basic auth) — cron·봇·전략 낙폭
 watchdog/       # 봇 프로세스 watchdog 패턴 + 예시 스크립트
 docs/runbook.md # 운영 런북 (배포·알림 해석·트러블슈팅)
 tests/          # 순수 로직 단위 테스트
