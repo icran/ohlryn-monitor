@@ -618,12 +618,14 @@ def render_html(data: dict, title: str) -> str:
             btn = _trade_modal(f"{r['strategy']}-{r['ticker']}",
                                f"{e(r['strategy'])} {e(r['ticker'])}", r.get("recent") or [],
                                curve=r.get("curve"))
+            # 참조에 역대 MDD가 없는 레그(신규 추가 직후 등)는 "—" — 한 행 때문에 페이지가 죽으면 안 된다
+            ref_mdd_txt = f"{r['ref_mdd']:+.1%}" if r.get("ref_mdd") is not None else "—"
             rows.append(
                 f"<tr><td>{e(r['strategy'])}</td>"
                 f"<td class=mono>{e(r['ticker'])}{note}</td>"
                 f"<td class=mono>{since_txt}</td>"
                 f"<td class=mono>{bt_txt}</td>"
-                f"<td class=mono>{r['ref_mdd']:+.1%}</td>"
+                f"<td class=mono>{ref_mdd_txt}</td>"
                 f"<td><span class='badge {cls}'>{label}</span></td>"
                 f"<td>{btn}</td></tr>")
 
@@ -649,7 +651,7 @@ def render_html(data: dict, title: str) -> str:
                     return f"{v:+.2%}" if v is not None else "<span class=detail>—</span>"
                 b = c.get("bt_now") or {}
                 cls, label = _state(c)
-                mdd_txt = f"{c['ref_mdd']:+.1%}" if c.get("ref_mdd") else "—"
+                mdd_txt = f"{c['ref_mdd']:+.1%}" if c.get("ref_mdd") is not None else "—"
                 now_txt = f"{b['drawdown']:+.1%}" if b else "—"
                 btn = _trade_modal(f"combo{i}", e(c["name"]), c.get("recent") or [], c["bt"],
                                    curve=c.get("curve"))

@@ -56,6 +56,23 @@ def test_sections_collapsed_when_ok_open_on_problem():
     assert "<details class=card open>" in render_html(bad, "t")
 
 
+def test_mdd_row_without_ref_mdd_renders_dash():
+    # 참조에 역대 MDD가 없는 레그(신규 추가 등)가 있어도 페이지가 죽지 않고 "—"로 표기
+    # (회귀: ref_mdd None → TypeError로 do_GET 전체가 500, 2026-08-10 접속 불가 사고)
+    data = {
+        "now": "2026-08-10T00:00:00+00:00", "jobs": [], "bots": [], "crashloop_flags": [],
+        "mdd": {
+            "base_date": "2026-07-17", "combos": [], "acct_pnl": {}, "accounts": [],
+            "rows": [{
+                "strategy": "ibs", "ticker": "AVGO", "ref_mdd": None, "ref_mdd_date": None,
+                "bt_now": None, "bt_since": None, "recent": [], "accounts": {},
+            }],
+        },
+    }
+    out = render_html(data, "t")
+    assert "AVGO" in out
+
+
 def test_bots_section_rendered():
     # 봇 현황: 봇 이름·전략(config)·중지 페어가 표기되고, 문제 봇이 있으면 섹션이 펼쳐짐
     data = {
