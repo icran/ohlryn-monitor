@@ -425,6 +425,20 @@ def collect_refresh_state(cfg: dict) -> dict:
         return {"status": "none", "at": None, "message": "아직 실행된 적 없음"}
 
 
+def _git_version() -> str:
+    """이 코드의 git short SHA — 화면에 박아 '지금 보는 페이지가 어느 배포인지'를
+    한눈에 판별하게 한다 (터널/캐시로 옛 페이지를 보는 상황과 배포 문제를 즉시 구분).
+    """
+    try:
+        out = subprocess.run(
+            ["git", "-C", os.path.dirname(os.path.abspath(__file__)), "rev-parse", "--short", "HEAD"],
+            capture_output=True, text=True, timeout=5,
+        )
+        return out.stdout.strip() or "?"
+    except Exception:  # noqa: BLE001 — git 없는 배포 환경 허용
+        return "?"
+
+
 def collect_status(cfg: dict, crontab_text: str | None = None) -> dict:
     """대시보드 데이터 수집 (I/O) — HTML/JSON 양쪽이 공유."""
     now = datetime.now(timezone.utc)
@@ -495,7 +509,7 @@ def collect_status(cfg: dict, crontab_text: str | None = None) -> dict:
 
     return {"now": now.isoformat(), "jobs": jobs, "bots": bots,
             "crashloop_flags": flags, "mdd": mdd_data, "pnl_curve": pnl_curve,
-            "refresh": collect_refresh_state(cfg)}
+            "refresh": collect_refresh_state(cfg), "version": _git_version()}
 
 
 def _favicon(has_problem: bool) -> str:
@@ -962,7 +976,7 @@ tr:last-child td{{border-bottom:none}}
 </style></head><body>
 <div class=nav><div class=nav-inner>
 <span class=logo-mark>O</span><span class=logo>{e(title)}</span>
-<span class=stamp>{e(data['now'][:19])}Z · {summary}</span>
+<span class=stamp>{e(data['now'][:19])}Z · {summary} · v{e(str(data.get('version') or '?'))}</span>
 <a class=btn-refresh href="/">↻ 새로고침</a>
 </div></div>
 <div class=page>
@@ -997,6 +1011,9 @@ class _Handler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(len(body)))
+        # 상태 대시보드는 항상 실시간이어야 한다 — 브라우저/중간 캐시가 옛 페이지를
+        # 보여주면 "배포했는데 안 바뀐다"류의 혼란이 생긴다(2026-08-14).
+        self.send_header("Cache-Control", "no-store")
         self.end_headers()
         self.wfile.write(body)
 

@@ -132,6 +132,13 @@ def test_curve_x_axis_date_ticks():
     assert ">08-14<" in out                # 끝 눈금 MM-DD
 
 
+def test_version_stamp_shown():
+    # 상단 스탬프에 배포 버전(git sha)이 표기된다 — 옛 페이지를 보고 있는지 즉시 판별용
+    data = {"now": "2026-08-14T00:00:00+00:00", "jobs": [], "bots": [],
+            "crashloop_flags": [], "version": "abc1234"}
+    assert "vabc1234" in render_html(data, "t")
+
+
 def test_bots_section_rendered():
     # 봇 현황: 봇 이름·전략(config)·중지 페어가 표기되고, 문제 봇이 있으면 섹션이 펼쳐짐
     data = {
