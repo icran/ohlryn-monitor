@@ -78,8 +78,11 @@ def telegram_send(
 ) -> None:
     """텔레그램 전송 (재시도 + 백오프). 모든 재시도 실패 시 마지막 예외를 raise.
 
-    재시도 사이 대기 = backoff * 2**attempt (backoff=1 → 1s, 2s). 네트워크 오류
-    (OSError 계열 — URLError/timeout/SSLError 포함)만 재시도한다.
+    재시도 사이 대기 = backoff * 2**attempt (backoff=1 → 1s, 2s). **연결 단계 오류만**
+    재시도한다 — urllib은 연결/요청 단계 오류를 URLError로 래핑하므로, bare TimeoutError는
+    응답 읽기 단계에서만 나온다 = 요청이 이미 텔레그램에 도달했을 공산이 큼. 이때 재시도하면
+    같은 메시지가 재전송돼 중복 발송된다(2026-08-14 동일 리포트 3연속 사고) — 전송된 것으로
+    간주하고 재시도 없이 종료한다.
 
     `_sender`/`_sleep`는 테스트 주입용(네트워크 없이 재시도 로직 검증).
     """
@@ -89,7 +92,11 @@ def telegram_send(
         try:
             send()
             return
-        except OSError as e:  # URLError·socket.timeout·ssl.SSLError 모두 OSError 하위
+        except TimeoutError as e:
+            # 응답 읽기 타임아웃 — 재전송 = 중복 발송. 전송된 것으로 간주.
+            print(f"telegram 응답 읽기 타임아웃 — 전송된 것으로 간주, 재시도 안 함: {e}")
+            return
+        except OSError as e:  # URLError·ConnectionError·ssl.SSLError 등 연결 단계
             last_exc = e
             if attempt < retries - 1:
                 _sleep(backoff * (2**attempt))

@@ -2,13 +2,17 @@
 
 import socket
 import unittest
+from urllib.error import URLError
 
 from ohlryn_monitor import notify
 from ohlryn_monitor.notify import prefer_ipv4, telegram_send
 
 
 class _Flaky:
-    """호출 N회까지 실패 후 성공하는 가짜 sender."""
+    """호출 N회까지 실패 후 성공하는 가짜 sender.
+
+    연결 단계 오류는 urllib이 URLError로 래핑한다 — 재시도 대상의 실제 타입.
+    """
 
     def __init__(self, fail_times):
         self.fail_times = fail_times
@@ -17,7 +21,7 @@ class _Flaky:
     def __call__(self):
         self.calls += 1
         if self.calls <= self.fail_times:
-            raise TimeoutError("handshake timed out")
+            raise URLError(TimeoutError("handshake timed out"))
 
 
 class TestTelegramSendRetry(unittest.TestCase):
@@ -39,10 +43,25 @@ class TestTelegramSendRetry(unittest.TestCase):
     def test_모두_실패하면_마지막_예외_raise(self):
         sender = _Flaky(fail_times=99)
         sleeps = []
-        with self.assertRaises(TimeoutError):
+        with self.assertRaises(URLError):
             telegram_send("t", "c", "m", retries=3, _sender=sender, _sleep=sleeps.append)
         self.assertEqual(sender.calls, 3)  # retries만큼 시도
         self.assertEqual(len(sleeps), 2)  # 마지막 시도 뒤엔 대기 없음
+
+    def test_응답_읽기_타임아웃은_재시도_안_함(self):
+        # bare TimeoutError = 요청이 이미 텔레그램에 도달한 뒤 응답만 못 읽은 경우.
+        # 재전송하면 같은 메시지가 중복 발송된다(2026-08-14 3연속 발송 사고) —
+        # 전송된 것으로 간주하고 즉시 종료(재시도 0회, 예외 없음).
+        calls = []
+
+        def read_timeout():
+            calls.append(1)
+            raise TimeoutError("The read operation timed out")
+
+        sleeps = []
+        telegram_send("t", "c", "m", retries=3, _sender=read_timeout, _sleep=sleeps.append)
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(sleeps, [])
 
     def test_비네트워크_예외는_재시도_안_함(self):
         # OSError가 아닌 예외(예: ValueError)는 즉시 전파
