@@ -95,6 +95,25 @@ def test_pnl_curve_section_rendered():
     assert out.count("<svg") >= 2  # 합산 + 계좌 곡선
 
 
+def test_curve_hover_tooltip_wired():
+    # 마우스 오버 시 일자별 값 확인: 곡선 svg에 데이터 속성(data-pts/labels/vals)과
+    # 호버 가이드 그룹(.hv)이 있고, 페이지에 호버 스크립트가 1회 포함된다
+    curve = [("2026-07-16", 0.0), ("2026-07-17", 0.05), ("2026-07-18", -0.02)]
+    data = {
+        "now": "2026-08-14T00:00:00+00:00", "jobs": [], "bots": [], "crashloop_flags": [],
+        "pnl_curve": {
+            "start": "2026-07-17", "end": "2026-07-18", "combined": curve,
+            "accounts": [{"name": "hs-binance", "initial": 200000.0, "curve": curve}],
+        },
+    }
+    out = render_html(data, "t")
+    assert "data-pts=" in out and "data-labels=" in out and "data-vals=" in out
+    assert "2026-07-17|" in out  # 날짜 라벨 데이터
+    assert "+5.00%|" in out      # 일자별 값 포맷 데이터
+    assert "class=hv" in out     # 호버 가이드(세로선·점·라벨) 그룹
+    assert out.count("svg[data-pts]") == 1  # 호버 스크립트는 페이지에 1회
+
+
 def test_bots_section_rendered():
     # 봇 현황: 봇 이름·전략(config)·중지 페어가 표기되고, 문제 봇이 있으면 섹션이 펼쳐짐
     data = {

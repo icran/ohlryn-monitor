@@ -289,9 +289,20 @@ def _curve_svg(curve: list) -> str:
     lx, ly = _x(len(curve) - 1), _y(last)
     # 끝값 말풍선 — 위쪽이 기본, 상단에 닿으면 아래로 뒤집는다
     ty = ly - 10 if ly - 10 > T + 10 else ly + 16
+    # 마우스 오버용 일자별 데이터 — 좌표는 위 pts 그대로, 라벨·값은 미리 포맷해 JS는 계산 없음
+    labels = "|".join(e(str(d)) for d, _ in curve)
+    fvals = "|".join(f"{v:+.2%}" for _, v in curve)
+    hover = (
+        "<g class=hv style='display:none' pointer-events=none>"
+        f"<line y1='{T}' y2='{H - B:.0f}' stroke='currentColor' "
+        "stroke-opacity='0.45' stroke-dasharray='2 3'/>"
+        "<circle r=3.6 fill='currentColor'/>"
+        f"<text y='{T + 10:.0f}' class=hv-text></text></g>")
     return (
         f"<div class=spark><svg viewBox='0 0 {W:.0f} {H:.0f}' role=img "
-        "aria-label='기간 수익률 곡선'>"
+        "aria-label='기간 수익률 곡선' "
+        f"data-pts='{pts}' data-labels='{labels}' data-vals='{fvals}' "
+        f"data-geom='{L},{R},{W:.0f}'>"
         + grid
         + f"<polyline points='{pts}' fill=none stroke='{col}' stroke-width=2.2 "
         "stroke-linejoin=round stroke-linecap=round/>"
@@ -301,7 +312,36 @@ def _curve_svg(curve: list) -> str:
         f"<text x='{L}' y='{H - 8:.0f}' class=gtick>{e(str(curve[0][0]))}</text>"
         f"<text x='{W - R:.0f}' y='{H - 8:.0f}' text-anchor=end class=gtick>"
         f"{e(str(curve[-1][0]))}</text>"
-        "</svg></div>")
+        + hover
+        + "</svg></div>")
+
+
+# 곡선 마우스 오버 — 가장 가까운 일자에 세로선·점·"날짜 값" 라벨을 띄운다.
+# 데이터(픽셀 좌표·라벨·포맷값)는 서버가 data-* 속성에 미리 넣어 JS는 조회만 한다.
+_HOVER_JS = """<script>
+document.querySelectorAll("svg[data-pts]").forEach(function (s) {
+  var pts = s.dataset.pts.split(" ").map(function (p) { return p.split(",").map(Number); });
+  var labels = s.dataset.labels.split("|"), vals = s.dataset.vals.split("|");
+  var g = s.querySelector(".hv");
+  if (!g || pts.length < 2) return;
+  var line = g.querySelector("line"), dot = g.querySelector("circle"), txt = g.querySelector("text");
+  var geom = s.dataset.geom.split(",").map(Number), L = geom[0], R = geom[1], W = geom[2];
+  s.addEventListener("mousemove", function (ev) {
+    var r = s.getBoundingClientRect();
+    var xv = (ev.clientX - r.left) / r.width * W;
+    var i = Math.round((xv - L) / (W - L - R) * (pts.length - 1));
+    i = Math.max(0, Math.min(pts.length - 1, i));
+    line.setAttribute("x1", pts[i][0]); line.setAttribute("x2", pts[i][0]);
+    dot.setAttribute("cx", pts[i][0]); dot.setAttribute("cy", pts[i][1]);
+    var left = pts[i][0] < W / 2;
+    txt.setAttribute("x", left ? pts[i][0] + 7 : pts[i][0] - 7);
+    txt.setAttribute("text-anchor", left ? "start" : "end");
+    txt.textContent = labels[i] + "  " + vals[i];
+    g.style.display = "";
+  });
+  s.addEventListener("mouseleave", function () { g.style.display = "none"; });
+});
+</script>"""
 
 
 def _fetch_trades(repo: str, acct: dict) -> tuple[list | None, str | None]:
@@ -885,6 +925,7 @@ tr:last-child td{{border-bottom:none}}
 .spark{{padding:12px 18px 4px;color:var(--text-faint)}}
 .curvehead{{display:flex;align-items:center;gap:6px;padding:14px 20px 0;font-size:14px}}
 .curvehead+.curvehead{{border-top:1px solid var(--line)}}
+.hv-text{{font-size:12.5px;font-weight:700;fill:var(--text)}}
 .spark svg{{width:100%;height:auto;display:block;overflow:visible}}
 .gtick{{font-family:'SF Mono','Menlo',monospace;font-size:11px;fill:currentColor}}
 .glast{{font-family:'SF Mono','Menlo',monospace;font-size:13px;font-weight:700}}
@@ -904,7 +945,7 @@ tr:last-child td{{border-bottom:none}}
 <div class=page>
 {''.join(sections)}
 {flags_html}
-</div></body></html>"""
+</div>{_HOVER_JS}</body></html>"""
 
 
 class _Handler(BaseHTTPRequestHandler):
