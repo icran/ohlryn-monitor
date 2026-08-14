@@ -289,6 +289,28 @@ def _curve_svg(curve: list) -> str:
     lx, ly = _x(len(curve) - 1), _y(last)
     # 끝값 말풍선 — 위쪽이 기본, 상단에 닿으면 아래로 뒤집는다
     ty = ly - 10 if ly - 10 > T + 10 else ly + 16
+
+    # 가로축 일자 눈금 — 처음(연도 포함)·중간(MM-DD)·끝(MM-DD). 겹침은 x 간격으로 걸러낸다.
+    n = len(curve)
+    step = max(1, (n - 1) // 5)
+    tick_is = list(range(0, n, step))
+    if tick_is[-1] != n - 1:
+        tick_is.append(n - 1)
+    xticks = ""
+    for i in tick_is:
+        x = _x(i)
+        if i not in (0, n - 1) and (x - L < 116 or _x(n - 1) - x < 56):
+            continue  # 첫(긴)·끝 라벨과 겹치는 중간 눈금은 생략
+        lbl = str(curve[i][0])
+        if i != 0 and len(lbl) == 10:
+            lbl = lbl[5:]  # 중간·끝은 MM-DD
+        anchor = "start" if i == 0 else ("end" if i == n - 1 else "middle")
+        if i not in (0, n - 1):  # 중간 눈금엔 흐린 세로 보조선
+            xticks += (f"<line x1='{x:.1f}' y1='{T}' x2='{x:.1f}' y2='{H - B:.0f}' "
+                       "stroke='currentColor' stroke-opacity='0.08'/>")
+        xticks += (f"<text x='{x:.1f}' y='{H - 8:.0f}' text-anchor={anchor} "
+                   f"class=gtick>{e(lbl)}</text>")
+
     # 마우스 오버용 일자별 데이터 — 좌표는 위 pts 그대로, 라벨·값은 미리 포맷해 JS는 계산 없음
     labels = "|".join(e(str(d)) for d, _ in curve)
     fvals = "|".join(f"{v:+.2%}" for _, v in curve)
@@ -303,15 +325,16 @@ def _curve_svg(curve: list) -> str:
         "aria-label='기간 수익률 곡선' "
         f"data-pts='{pts}' data-labels='{labels}' data-vals='{fvals}' "
         f"data-geom='{L},{R},{W:.0f}'>"
-        + grid
+        # ⚠ 인라인 SVG의 빈(unpainted) 영역은 포인터 이벤트를 뒤로 통과시킨다 — 이 투명
+        #   rect 가 전체 영역의 이벤트를 받아줘야 실제 마우스 호버가 선 위가 아니어도 발화한다
+        f"<rect x='0' y='0' width='{W:.0f}' height='{H:.0f}' fill='none' "
+        "pointer-events='all'/>"
+        + grid + xticks
         + f"<polyline points='{pts}' fill=none stroke='{col}' stroke-width=2.2 "
         "stroke-linejoin=round stroke-linecap=round/>"
         f"<circle cx='{lx:.1f}' cy='{ly:.1f}' r=3.4 fill='{col}'/>"
         f"<text x='{min(lx, W - R):.1f}' y='{ty:.1f}' text-anchor=end class=glast "
         f"fill='{col}'>{last:+.2%}</text>"
-        f"<text x='{L}' y='{H - 8:.0f}' class=gtick>{e(str(curve[0][0]))}</text>"
-        f"<text x='{W - R:.0f}' y='{H - 8:.0f}' text-anchor=end class=gtick>"
-        f"{e(str(curve[-1][0]))}</text>"
         + hover
         + "</svg></div>")
 

@@ -112,6 +112,24 @@ def test_curve_hover_tooltip_wired():
     assert "+5.00%|" in out      # 일자별 값 포맷 데이터
     assert "class=hv" in out     # 호버 가이드(세로선·점·라벨) 그룹
     assert out.count("svg[data-pts]") == 1  # 호버 스크립트는 페이지에 1회
+    # ⚠ 인라인 SVG 빈 영역은 포인터 이벤트를 통과시킨다 — 투명 캡처 rect가 없으면
+    #   실제 마우스로는 2px 선 위에서만 호버가 발화한다(합성 이벤트 테스트론 안 잡힘)
+    assert "pointer-events='all'" in out
+
+
+def test_curve_x_axis_date_ticks():
+    # 가로축에 중간 일자 눈금이 표기된다 (처음은 연도 포함, 중간·끝은 MM-DD)
+    from datetime import date, timedelta
+    curve = [((date(2026, 7, 16) + timedelta(days=i)).isoformat(), i / 1000) for i in range(30)]
+    data = {
+        "now": "2026-08-14T00:00:00+00:00", "jobs": [], "bots": [], "crashloop_flags": [],
+        "pnl_curve": {"start": "2026-07-17", "end": "2026-08-14", "combined": curve,
+                      "accounts": [{"name": "hs-binance", "initial": 1000.0, "curve": curve}]},
+    }
+    out = render_html(data, "t")
+    assert ">2026-07-16<" in out           # 첫 눈금은 연도 포함
+    assert ">07-26<" in out or ">07-25<" in out  # 중간 눈금 MM-DD
+    assert ">08-14<" in out                # 끝 눈금 MM-DD
 
 
 def test_bots_section_rendered():
