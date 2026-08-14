@@ -47,7 +47,8 @@ _JOB_OK = {
 
 def test_sections_collapsed_when_ok_open_on_problem():
     # 정상 섹션은 접힘(details, open 없음) / 문제(error·stale) 섹션은 펼쳐짐(open)
-    base = {"now": "2026-08-03T00:00:00+00:00", "jobs": [_JOB_OK], "bots": [], "crashloop_flags": []}
+    base = {"now": "2026-08-03T00:00:00+00:00", "jobs": [_JOB_OK], "bots": [],
+            "crashloop_flags": [], "pnl_curve": {}}
     html_ok = render_html(base, "t")
     assert "<details class=card>" in html_ok
     assert "<details class=card open>" not in html_ok
@@ -71,6 +72,27 @@ def test_mdd_row_without_ref_mdd_renders_dash():
     }
     out = render_html(data, "t")
     assert "AVGO" in out
+
+
+def test_pnl_curve_section_rendered():
+    # 계좌 수익률 추이: 합산·계좌별 곡선 SVG + 마지막 수익률, 조회실패 계좌는 라벨로 표기
+    curve = [("2026-07-16", 0.0), ("2026-07-17", 0.05), ("2026-07-18", -0.02)]
+    data = {
+        "now": "2026-08-14T00:00:00+00:00", "jobs": [], "bots": [], "crashloop_flags": [],
+        "pnl_curve": {
+            "start": "2026-07-17", "end": "2026-08-14", "combined": curve,
+            "accounts": [
+                {"name": "hs-binance", "initial": 200000.0, "curve": curve},
+                {"name": "hs-bybit", "error": "URLError"},
+            ],
+        },
+    }
+    out = render_html(data, "t")
+    assert "계좌 수익률 추이" in out
+    assert "전체 합산" in out and "hs-binance" in out
+    assert "-2.00%" in out  # 곡선 마지막 값이 헤더에 표기
+    assert "조회실패(URLError)" in out
+    assert out.count("<svg") >= 2  # 합산 + 계좌 곡선
 
 
 def test_bots_section_rendered():

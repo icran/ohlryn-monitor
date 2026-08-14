@@ -243,6 +243,113 @@ def _fetch_equity(repo: str, acct: dict) -> float | None:
         return None
 
 
+def _curve_svg(curve: list) -> str:
+    """기간 수익률 곡선 — 인라인 SVG. 외부 라이브러리·JS 없이 그린다.
+
+    곡선 데이터는 [(라벨, 수익률 fraction)]. 0% 기준선을 함께 그어 손익 전환
+    시점이 보이게 한다. 낙폭 패널(_spark)과 계좌 수익률 추이가 공유한다.
+    """
+    if len(curve) < 2:
+        return ""
+    e = html.escape
+    # ⚠ preserveAspectRatio 를 끄면(none) 글자가 가로로 늘어난다 — 눈금 %를 SVG 안에
+    #   넣으려면 종횡비를 유지해야 한다. width:100%/height:auto 로 비례 축소한다.
+    W, H = 560.0, 172.0
+    L, R, T, B = 50.0, 12.0, 14.0, 26.0     # 좌(눈금 %)·우·상·하(날짜) 여백
+    vals = [v for _, v in curve]
+    lo, hi = min(vals + [0.0]), max(vals + [0.0])
+    span = (hi - lo) or 1.0
+
+    def _y(v):
+        return T + (hi - v) / span * (H - T - B)
+
+    def _x(i):
+        return L + i / (len(curve) - 1) * (W - L - R)
+
+    # 눈금: 0%·최고·최저. 서로 12 단위 이내면 겹치므로 버린다.
+    # ⚠ 0% 를 맨 앞에 둔다 — 손익 전환선이라 최고/최저에 밀려 사라지면 안 된다
+    #   (뒤에 두었더니 낙폭이 큰 레그에서 0% 선이 통째로 빠졌다).
+    ticks, used = [], []
+    for v in (0.0, hi, lo):
+        y = _y(v)
+        if any(abs(y - u) < 12 for u in used):
+            continue
+        used.append(y)
+        ticks.append((v, y))
+    grid = "".join(
+        f"<line x1='{L}' y1='{y:.1f}' x2='{W - R}' y2='{y:.1f}' stroke='currentColor' "
+        f"stroke-opacity='{0.35 if v == 0 else 0.13}'"
+        + (" stroke-dasharray='3 3'" if v == 0 else "") + "/>"
+        f"<text x='{L - 6}' y='{y + 3.5:.1f}' text-anchor=end class=gtick>{v:+.1%}</text>"
+        for v, y in ticks)
+
+    pts = " ".join(f"{_x(i):.1f},{_y(v):.1f}" for i, (_, v) in enumerate(curve))
+    last = vals[-1]
+    col = "var(--accent)" if last >= 0 else "var(--danger-text)"
+    lx, ly = _x(len(curve) - 1), _y(last)
+    # 끝값 말풍선 — 위쪽이 기본, 상단에 닿으면 아래로 뒤집는다
+    ty = ly - 10 if ly - 10 > T + 10 else ly + 16
+    return (
+        f"<div class=spark><svg viewBox='0 0 {W:.0f} {H:.0f}' role=img "
+        "aria-label='기간 수익률 곡선'>"
+        + grid
+        + f"<polyline points='{pts}' fill=none stroke='{col}' stroke-width=2.2 "
+        "stroke-linejoin=round stroke-linecap=round/>"
+        f"<circle cx='{lx:.1f}' cy='{ly:.1f}' r=3.4 fill='{col}'/>"
+        f"<text x='{min(lx, W - R):.1f}' y='{ty:.1f}' text-anchor=end class=glast "
+        f"fill='{col}'>{last:+.2%}</text>"
+        f"<text x='{L}' y='{H - 8:.0f}' class=gtick>{e(str(curve[0][0]))}</text>"
+        f"<text x='{W - R:.0f}' y='{H - 8:.0f}' text-anchor=end class=gtick>"
+        f"{e(str(curve[-1][0]))}</text>"
+        "</svg></div>")
+
+
+def _fetch_trades(repo: str, acct: dict) -> tuple[list | None, str | None]:
+    """봇 /api/v1/trades — 청산 거래 목록. 실패 시 (None, 오류명)."""
+    try:
+        env = parse_env(os.path.join(repo, acct["env"]))
+        auth = base64.b64encode(
+            f"{env.get('WEB_USERNAME', '')}:{env.get('WEB_PASSWORD', '')}".encode()).decode()
+        req = urllib.request.Request(
+            f"http://localhost:{acct['port']}/api/v1/trades",
+            headers={"Authorization": f"Basic {auth}"})
+        with urllib.request.urlopen(req, timeout=8) as r:  # noqa: S310 — localhost 고정
+            doc = json.loads(r.read().decode())
+        return (doc if isinstance(doc, list) else doc.get("trades", [])), None
+    except Exception as e:  # noqa: BLE001 — 한 계좌 실패가 나머지를 막으면 안 됨
+        return None, type(e).__name__
+
+
+def collect_pnl_curve(cfg: dict) -> dict:
+    """계좌별·합산 일별 실현 수익률 곡선 — config "pnl_curve" 지정 시에만.
+
+    config: {"pnl_curve": {"accounts": [{"name","port","env","initial"}]}}
+    시작일은 전 계좌 최초 청산일(= pcopy 첫 거래), 끝은 오늘(UTC).
+    """
+    from ohlryn_monitor.pnlcurve import combined_curve, daily_net_pnl, fill_curve
+
+    pc = cfg.get("pnl_curve")
+    if not pc:
+        return {}
+    end = datetime.now(timezone.utc).date().isoformat()
+    accounts, maps, initials = [], [], []
+    for acct in pc.get("accounts", []):
+        trades, err = _fetch_trades(cfg.get("repo", ""), acct)
+        if trades is None:
+            accounts.append({"name": acct["name"], "error": err})
+            continue
+        m = daily_net_pnl(trades)
+        maps.append(m)
+        initials.append(float(acct["initial"]))
+        accounts.append({"name": acct["name"], "initial": float(acct["initial"]), "_pnl": m})
+    start = min((min(m) for m in maps if m), default=None)
+    for a in accounts:
+        if "_pnl" in a:
+            a["curve"] = fill_curve(a.pop("_pnl"), a["initial"], start=start, end=end)
+    return {"accounts": accounts, "start": start, "end": end,
+            "combined": combined_curve(maps, initials, start=start, end=end)}
+
+
 def collect_refresh_state(cfg: dict) -> dict:
     """기준선 갱신 버튼의 마지막 실행 상태."""
     mc = cfg.get("mdd") or {}
@@ -318,8 +425,13 @@ def collect_status(cfg: dict, crontab_text: str | None = None) -> dict:
     except Exception as exc:  # noqa: BLE001 — 대시보드 전체가 죽지 않게 격리
         mdd_data = {"error": f"{type(exc).__name__}: {exc}"}
 
+    try:
+        pnl_curve = collect_pnl_curve(cfg)
+    except Exception as exc:  # noqa: BLE001 — 대시보드 전체가 죽지 않게 격리
+        pnl_curve = {"error": f"{type(exc).__name__}: {exc}"}
+
     return {"now": now.isoformat(), "jobs": jobs, "bots": bots,
-            "crashloop_flags": flags, "mdd": mdd_data,
+            "crashloop_flags": flags, "mdd": mdd_data, "pnl_curve": pnl_curve,
             "refresh": collect_refresh_state(cfg)}
 
 
@@ -445,6 +557,45 @@ def render_html(data: dict, title: str) -> str:
             )
         )
 
+    # ── 계좌 수익률 추이 (config "pnl_curve" 지정 시) ─────────────────
+    pc = data.get("pnl_curve") or {}
+    if pc.get("accounts") or pc.get("error"):
+        blocks = []
+        if pc.get("error"):
+            blocks.append(f"<div class=guide>수집 실패: {e(str(pc['error']))}</div>")
+        else:
+            blocks.append(
+                "<div class=guide>"
+                f"<b>{e(str(pc.get('start') or ''))} (pcopy 첫 거래) 이후 일별 누적 수익률</b> — "
+                "봇이 <b>청산한 거래의 실현손익</b>(수수료·펀딩 차감) 기준입니다. "
+                "미실현 손익은 포함되지 않아, 포지션이 열려 있으면 텔레그램의 equity 기준 "
+                "수익률과 그만큼 다를 수 있습니다. 입출금 이체는 이 곡선에 영향을 주지 않습니다."
+                "</div>")
+            comb = pc.get("combined") or []
+            if comb:
+                blocks.append(
+                    f"<div class=curvehead><b>전체 합산</b><span class=spacer></span>"
+                    f"<span class='mono {'up' if comb[-1][1] >= 0 else 'down'}'>"
+                    f"{comb[-1][1]:+.2%}</span></div>" + _curve_svg(comb))
+            for a in pc["accounts"]:
+                if a.get("error"):
+                    blocks.append(
+                        f"<div class=curvehead><b>{e(a['name'])}</b><span class=spacer></span>"
+                        f"<span class=detail>조회실패({e(str(a['error']))})</span></div>")
+                    continue
+                cv = a.get("curve") or []
+                last = cv[-1][1] if cv else 0.0
+                blocks.append(
+                    f"<div class=curvehead><b>{e(a['name'])}</b>"
+                    f"<span class=detail>&nbsp;투입 {a['initial']:,.0f}</span>"
+                    f"<span class=spacer></span>"
+                    f"<span class='mono {'up' if last >= 0 else 'down'}'>{last:+.2%}</span></div>"
+                    + _curve_svg(cv))
+        n_err = sum(1 for a in pc.get("accounts", []) if a.get("error")) + (1 if pc.get("error") else 0)
+        sections.append(_details_card(
+            "계좌 수익률 추이 (일별·실현)", len(pc.get("accounts", [])), n_err,
+            "".join(blocks), bad_label="조회실패"))
+
     m = data.get("mdd") or {}
     if m.get("rows"):
         def _state(row):
@@ -472,65 +623,7 @@ def render_html(data: dict, title: str) -> str:
             return "badge-ok", "🟢 양호"
 
         dialogs = []
-
-        def _spark(curve: list) -> str:
-            """기간 수익률 곡선 — 인라인 SVG. 외부 라이브러리·JS 없이 그린다.
-
-            곡선의 마지막 점이 표의 성적 열 값과 같은 출처(`_bt_curve`)라 끝점과 숫자가
-            어긋날 수 없다. 0% 기준선을 함께 그어 손익 전환 시점이 보이게 한다.
-            """
-            if len(curve) < 2:
-                return ""
-            # ⚠ preserveAspectRatio 를 끄면(none) 글자가 가로로 늘어난다 — 눈금 %를 SVG 안에
-            #   넣으려면 종횡비를 유지해야 한다. width:100%/height:auto 로 비례 축소한다.
-            W, H = 560.0, 172.0
-            L, R, T, B = 50.0, 12.0, 14.0, 26.0     # 좌(눈금 %)·우·상·하(날짜) 여백
-            vals = [v for _, v in curve]
-            lo, hi = min(vals + [0.0]), max(vals + [0.0])
-            span = (hi - lo) or 1.0
-
-            def _y(v):
-                return T + (hi - v) / span * (H - T - B)
-
-            def _x(i):
-                return L + i / (len(curve) - 1) * (W - L - R)
-
-            # 눈금: 0%·최고·최저. 서로 12 단위 이내면 겹치므로 버린다.
-            # ⚠ 0% 를 맨 앞에 둔다 — 손익 전환선이라 최고/최저에 밀려 사라지면 안 된다
-            #   (뒤에 두었더니 낙폭이 큰 레그에서 0% 선이 통째로 빠졌다).
-            ticks, used = [], []
-            for v in (0.0, hi, lo):
-                y = _y(v)
-                if any(abs(y - u) < 12 for u in used):
-                    continue
-                used.append(y)
-                ticks.append((v, y))
-            grid = "".join(
-                f"<line x1='{L}' y1='{y:.1f}' x2='{W - R}' y2='{y:.1f}' stroke='currentColor' "
-                f"stroke-opacity='{0.35 if v == 0 else 0.13}'"
-                + (" stroke-dasharray='3 3'" if v == 0 else "") + "/>"
-                f"<text x='{L - 6}' y='{y + 3.5:.1f}' text-anchor=end class=gtick>{v:+.1%}</text>"
-                for v, y in ticks)
-
-            pts = " ".join(f"{_x(i):.1f},{_y(v):.1f}" for i, (_, v) in enumerate(curve))
-            last = vals[-1]
-            col = "var(--accent)" if last >= 0 else "var(--danger-text)"
-            lx, ly = _x(len(curve) - 1), _y(last)
-            # 끝값 말풍선 — 위쪽이 기본, 상단에 닿으면 아래로 뒤집는다
-            ty = ly - 10 if ly - 10 > T + 10 else ly + 16
-            return (
-                f"<div class=spark><svg viewBox='0 0 {W:.0f} {H:.0f}' role=img "
-                "aria-label='기간 수익률 곡선'>"
-                + grid
-                + f"<polyline points='{pts}' fill=none stroke='{col}' stroke-width=2.2 "
-                "stroke-linejoin=round stroke-linecap=round/>"
-                f"<circle cx='{lx:.1f}' cy='{ly:.1f}' r=3.4 fill='{col}'/>"
-                f"<text x='{min(lx, W - R):.1f}' y='{ty:.1f}' text-anchor=end class=glast "
-                f"fill='{col}'>{last:+.2%}</text>"
-                f"<text x='{L}' y='{H - 8:.0f}' class=gtick>{e(str(curve[0][0]))}</text>"
-                f"<text x='{W - R:.0f}' y='{H - 8:.0f}' text-anchor=end class=gtick>"
-                f"{e(str(curve[-1][0]))}</text>"
-                "</svg></div>")
+        _spark = _curve_svg
 
         def _trade_modal(key: str, title: str, trades: list, total: float | None = None,
                         curve: list | None = None) -> str:
@@ -790,6 +883,8 @@ tr:last-child td{{border-bottom:none}}
 .modal-x{{background:none;border:none;font-size:16px;color:var(--text-faint);cursor:pointer;padding:2px 6px}}
 .modal-body{{max-height:60vh;overflow:auto}}
 .spark{{padding:12px 18px 4px;color:var(--text-faint)}}
+.curvehead{{display:flex;align-items:center;gap:6px;padding:14px 20px 0;font-size:14px}}
+.curvehead+.curvehead{{border-top:1px solid var(--line)}}
 .spark svg{{width:100%;height:auto;display:block;overflow:visible}}
 .gtick{{font-family:'SF Mono','Menlo',monospace;font-size:11px;fill:currentColor}}
 .glast{{font-family:'SF Mono','Menlo',monospace;font-size:13px;font-weight:700}}

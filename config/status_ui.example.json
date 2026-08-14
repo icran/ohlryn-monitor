@@ -57,6 +57,16 @@
       "env": ".env_binance_main"
     }
   ],
+  "pnl_curve": {
+    "_comment": [
+      "계좌 수익률 추이 패널 — 봇 /api/v1/trades 의 청산 거래(실현손익)로",
+      "일별 누적 수익률 곡선을 그린다 (계좌별 + 전체 합산).",
+      "initial 은 pnl_watch config 와 같은 초기 투자금. 미실현 손익은 포함되지 않는다."
+    ],
+    "accounts": [
+      {"name": "my-binance", "port": 8010, "env": ".env_mybot", "initial": 10000}
+    ]
+  },
   "mdd": {
     "_comment": [
       "전략×티커별 낙폭 패널. 백테스트를 매일 재실행하지 않는다 —",
