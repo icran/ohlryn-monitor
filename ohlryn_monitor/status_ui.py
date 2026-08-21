@@ -95,8 +95,8 @@ def collect_mdd(cfg: dict) -> dict:
     import sqlite3
 
     from ohlryn_monitor.mdd import (
-        bt_state_source, group_key, leg_status, live_curve, returns_since, status_level,
-        trade_returns,
+        bt_state_source, group_key, leg_status, live_curve, open_units, returns_since,
+        status_level, trade_returns,
     )
 
     mc = cfg.get("mdd")
@@ -120,7 +120,7 @@ def collect_mdd(cfg: dict) -> dict:
                         # ⚠ leverage 필수 — 빠지면 trade_returns 가 1 로 폴백해 lev10 계좌 수익률이
                         #   10배가 된다(2026-08-06 대시보드에 +264% 로 표시된 사고).
                         "SELECT strategy_id,pair,exit_date,entry_date,pnl,stake_amount,"
-                        "max_stake_amount,leverage,is_open FROM trades")]
+                        "max_stake_amount,leverage,is_open,custom_data FROM trades")]
                     for r in cur.fetchall()]
             con.close()
         except sqlite3.Error:
@@ -178,7 +178,9 @@ def collect_mdd(cfg: dict) -> dict:
                            "start": first.get((strat, ticker, a)),
                            "anchor_dd": (anc or {}).get("drawdown"),
                            "live_pnl": solo["equity"] - 1,
-                           "since": returns_since(rets, base_date)}
+                           "since": returns_since(rets, base_date),
+                           # IBS 분할(1/4) 진입 차수 — 오픈 거래 custom_data 에서
+                           "units": open_units(rs) if strat == "IBS" else None}
         out_rows.append({
             "strategy": strat, "ticker": ticker,
             "curve_valid": True,
@@ -224,7 +226,8 @@ def collect_mdd(cfg: dict) -> dict:
     return {"period": ref_doc.get("period"), "generated_at": ref_doc.get("generated_at"),
             "base_date": base_date, "recent_from": ref_doc.get("recent_from"),
             "combos": combos, "acct_pnl": acct_pnl,
-            "rows": out_rows, "accounts": [a["label"] for a in mc["accounts"]]}
+            "rows": out_rows, "accounts": [a["label"] for a in mc["accounts"]],
+            "n_splits": mc.get("ibs_n_splits", 4)}
 
 
 def _fetch_equity(repo: str, acct: dict) -> float | None:
@@ -783,6 +786,12 @@ def render_html(data: dict, title: str) -> str:
 
             # 보조 설명 한 줄 — 역대 발생 시점 / 계좌 전체 낙폭(양변기)
             bits = []
+            # IBS 분할 진입 차수 — 계좌별 오픈 포지션의 units_used (예: main 2/4)
+            units_bits = [f"{e(str(a))} <b>{st['units']}/{m.get('n_splits', 4)}</b>"
+                          for a, st in sorted((r.get("accounts") or {}).items())
+                          if st.get("units")]
+            if units_bits:
+                bits.append("분할 진입 " + " · ".join(units_bits))
             if r.get("ref_mdd_date"):
                 bits.append(f"역대 최악 {e(str(r['ref_mdd_date']))}")
             if b.get("date"):

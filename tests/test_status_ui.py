@@ -57,6 +57,29 @@ def test_sections_collapsed_when_ok_open_on_problem():
     assert "<details class=card open>" in render_html(bad, "t")
 
 
+def test_mdd_row_shows_split_entry_units():
+    # IBS 분할 전략: 계좌별 오픈 포지션의 진입 차수(units/4)가 티커 보조설명에 표기된다
+    data = {
+        "now": "2026-08-21T00:00:00+00:00", "jobs": [], "bots": [], "crashloop_flags": [],
+        "mdd": {
+            "base_date": "2026-07-01", "combos": [], "acct_pnl": {}, "accounts": [],
+            "n_splits": 4,
+            "rows": [{
+                "strategy": "IBS", "ticker": "AVGO", "ref_mdd": -0.1, "ref_mdd_date": None,
+                "bt_now": None, "bt_since": None, "recent": [],
+                "accounts": {
+                    "8012 main": {"units": 2, "level": "ok"},
+                    "8011 pcopy": {"units": None, "level": "ok"},  # 미보유 → 미표기
+                },
+            }],
+        },
+    }
+    out = render_html(data, "t")
+    assert "분할 진입" in out
+    assert "8012 main <b>2/4</b>" in out
+    assert "8011 pcopy" not in out.split("분할 진입")[1].split("</span>")[0]
+
+
 def test_mdd_row_without_ref_mdd_renders_dash():
     # 참조에 역대 MDD가 없는 레그(신규 추가 등)가 있어도 페이지가 죽지 않고 "—"로 표기
     # (회귀: ref_mdd None → TypeError로 do_GET 전체가 500, 2026-08-10 접속 불가 사고)

@@ -26,6 +26,23 @@ PREFIX = {"natas15_ibs": "IBS", "natas29": "YBG"}
 # ── group_key: 계좌 변형 접미사를 무시하고 (전략, 티커)로 묶는다 ──────
 
 
+def test_분할_진입_차수는_오픈_거래의_units_used에서_읽는다():
+    # IBS 분할(1/4) 표시용: 오픈 거래 custom_data.units_used → 차수.
+    # 오픈인데 units_used 없으면 1차(전략이 1차 진입 직후엔 키를 안 쓸 수 있음),
+    # 오픈 거래가 없으면 None(미보유), 깨진 JSON 은 1차로 방어.
+    from ohlryn_monitor.mdd import open_units
+    assert open_units([]) is None
+    assert open_units([{"is_open": 0, "custom_data": '{"units_used": 3}'}]) is None
+    assert open_units([{"is_open": 1, "custom_data": '{"units_used": 2}'}]) == 2
+    assert open_units([{"is_open": 1, "custom_data": "{}"}]) == 1
+    assert open_units([{"is_open": 1, "custom_data": None}]) == 1
+    assert open_units([{"is_open": 1, "custom_data": "not-json"}]) == 1
+    assert open_units([
+        {"is_open": 1, "custom_data": '{"units_used": 1}'},
+        {"is_open": 1, "custom_data": '{"units_used": 3}'},
+    ]) == 3
+
+
 def test_상태곡선은_mtm이_있으면_mtm을_쓴다():
     # "지금 낙폭" 배지는 미실현 포함(MTM) 곡선 우선 — cycle(청산 시점)만 보면
     # 보유 중 손실인데 신고점으로 오표시된다 (2026-08-21 IBS 3레그 지적)

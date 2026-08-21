@@ -154,6 +154,26 @@ def returns_since(returns: list[tuple[str, float]], base_date: str | None) -> fl
     return total - 1 if hit else 0.0
 
 
+def open_units(rows) -> int | None:
+    """오픈 거래의 분할 진입 차수 — custom_data.units_used (없으면 1차로 간주).
+
+    IBS 분할 전략 표시용. 오픈 거래가 없으면 None(미보유). 같은 레그에 오픈이
+    여러 건이면(비정상) 최대값. 깨진 custom_data 는 1차로 방어.
+    """
+    import json
+
+    units = None
+    for r in rows:
+        if not r.get("is_open"):
+            continue
+        try:
+            u = int(json.loads(r.get("custom_data") or "{}").get("units_used", 1))
+        except (ValueError, TypeError):
+            u = 1
+        units = u if units is None else max(units, u)
+    return units
+
+
 def bt_state_source(ref: dict) -> dict:
     """"지금 낙폭"/상태 배지용 곡선 선택 — mtm(미실현 포함)이 있으면 cycle 대신 쓴다.
 
