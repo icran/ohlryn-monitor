@@ -26,6 +26,17 @@ PREFIX = {"natas15_ibs": "IBS", "natas29": "YBG"}
 # ── group_key: 계좌 변형 접미사를 무시하고 (전략, 티커)로 묶는다 ──────
 
 
+def test_상태곡선은_mtm이_있으면_mtm을_쓴다():
+    # "지금 낙폭" 배지는 미실현 포함(MTM) 곡선 우선 — cycle(청산 시점)만 보면
+    # 보유 중 손실인데 신고점으로 오표시된다 (2026-08-21 IBS 3레그 지적)
+    from ohlryn_monitor.mdd import bt_state_source
+    mtm = {"mdd": -0.10, "anchors": {"2026-08-20": {"drawdown": -0.07}}}
+    cyc = {"mdd": -0.18, "anchors": {"2026-07-30": {"drawdown": 0.0}}}
+    assert bt_state_source({"mtm": mtm, "cycle": cyc}) is mtm
+    assert bt_state_source({"cycle": cyc}) is cyc      # 구 reference 하위호환
+    assert bt_state_source({}) == {}
+
+
 def test_계좌_변형_접미사가_달라도_같은_키로_묶인다():
     ids = [
         "natas15_ibs_live_soxl_main",

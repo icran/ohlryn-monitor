@@ -95,7 +95,8 @@ def collect_mdd(cfg: dict) -> dict:
     import sqlite3
 
     from ohlryn_monitor.mdd import (
-        group_key, leg_status, live_curve, returns_since, status_level, trade_returns,
+        bt_state_source, group_key, leg_status, live_curve, returns_since, status_level,
+        trade_returns,
     )
 
     mc = cfg.get("mdd")
@@ -182,9 +183,13 @@ def collect_mdd(cfg: dict) -> dict:
             "strategy": strat, "ticker": ticker,
             "curve_valid": True,
             "account_mdd": ref.get("account_mdd"),   # YBG: 계좌 전체(상쇄 후) 참고값
-            "ref_mdd": cyc.get("mdd"), "ref_mdd_date": cyc.get("mdd_date"),
-            "ref_max_uw": cyc.get("max_uw_days"), "ref_worst": ref.get("worst_trade"),
-            "bt_now": _bt_now(cyc), "bt_since": _bt_since(cyc),
+            # 지금 낙폭·역대 최악·배지는 MTM(미실현 포함) 우선 — cycle 만 보면 보유 중
+            # 손실이 "신고점"으로 오표시된다. 성적/최근거래/라이브 앵커는 cycle 단위 유지.
+            "ref_mdd": bt_state_source(ref).get("mdd"),
+            "ref_mdd_date": bt_state_source(ref).get("mdd_date"),
+            "ref_max_uw": bt_state_source(ref).get("max_uw_days"),
+            "ref_worst": ref.get("worst_trade"),
+            "bt_now": _bt_now(bt_state_source(ref)), "bt_since": _bt_since(cyc),
             "curve": _bt_curve(cyc),
             "recent": ref.get("recent_trades") or [],
             "accounts": accounts,
@@ -210,9 +215,10 @@ def collect_mdd(cfg: dict) -> dict:
     combos = []
     for rc in ref_doc.get("combos") or []:
         cyc = rc.get("cycle") or {}
+        st = bt_state_source(rc)   # 배지·지금낙폭·역대최악 = MTM 우선 / 성적·곡선 = cycle 유지
         combos.append({"name": rc["name"], "bt": _bt_since(cyc),
-                       "ref_mdd": cyc.get("mdd"), "ref_mdd_date": cyc.get("mdd_date"),
-                       "bt_now": _bt_now(cyc), "curve": _bt_curve(cyc),
+                       "ref_mdd": st.get("mdd"), "ref_mdd_date": st.get("mdd_date"),
+                       "bt_now": _bt_now(st), "curve": _bt_curve(cyc),
                        "recent": rc.get("recent_trades") or []})
 
     return {"period": ref_doc.get("period"), "generated_at": ref_doc.get("generated_at"),
@@ -761,7 +767,7 @@ def render_html(data: dict, title: str) -> str:
         head = ("<tr><th>전략</th><th>티커</th>"
                 f"<th>{e(str(m.get('base_date') or ''))} 이후 성적"
                 "<br><span class=detail>백테스트</span></th>"
-                "<th>지금 낙폭<br><span class=detail>백테스트 현재</span></th>"
+                "<th>지금 낙폭<br><span class=detail>백테스트 현재 · 미실현 포함</span></th>"
                 "<th>역대 최악<br><span class=detail>이 레그 기준</span></th>"
                 "<th>상태</th><th>최근 거래</th></tr>")
         rows, n_bad = [], 0
@@ -838,7 +844,7 @@ def render_html(data: dict, title: str) -> str:
                 f"<table class=t-mdd><tr><th>구성</th>"
                 f"<th>{e(str(m.get('base_date') or ''))} 이후 성적"
                 "<br><span class=detail>백테스트</span></th>"
-                "<th>지금 낙폭<br><span class=detail>백테스트 현재</span></th>"
+                "<th>지금 낙폭<br><span class=detail>백테스트 현재 · 미실현 포함</span></th>"
                 "<th>역대 최악<br><span class=detail>이 조합 기준</span></th>"
                 "<th>상태</th><th>최근 거래</th></tr>" + "".join(crows) + "</table>")
         ap = m.get("acct_pnl") or {}

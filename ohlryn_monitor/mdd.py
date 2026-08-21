@@ -154,6 +154,17 @@ def returns_since(returns: list[tuple[str, float]], base_date: str | None) -> fl
     return total - 1 if hit else 0.0
 
 
+def bt_state_source(ref: dict) -> dict:
+    """"지금 낙폭"/상태 배지용 곡선 선택 — mtm(미실현 포함)이 있으면 cycle 대신 쓴다.
+
+    cycle(청산 시점 인덱스) 곡선은 포지션 보유 중 미실현 손실을 못 보고 마지막 청산
+    시점에 멈춰 "신고점"으로 오표시된다. reference 가 mtm(일별 MTM equity)을 내보내면
+    그걸 우선한다. 구 reference(mtm 없음)는 cycle 폴백 — 하위호환.
+    성적(bt_since)·최근거래·라이브 앵커는 계속 cycle 단위다 (라이브 거래와 같은 단위).
+    """
+    return ref.get("mtm") or ref.get("cycle") or {}
+
+
 def combine_legs(leg_returns: dict[str, float], weights: dict[str, float]) -> float | None:
     """레그 수익률 → 조합 수익률 (가중합). 거래 없는 레그는 0으로 친다.
 
