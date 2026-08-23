@@ -3,7 +3,8 @@
 규칙:
   1) 오래 돌다 사망 1회 → RESTART
   2) 부팅 후 boot_grace(120s) 내 사망 연속 2회 → BREAK (같은 조건 사망 대리 지표)
-  3) 종류 무관 window(30분) 내 3회 사망 → BREAK (백스톱)
+  3) 종류 무관 window(30분) 내 5회 사망 → BREAK (백스톱)
+     — 수동 재시작도 사망으로 세므로, 설정 수정 한 회차(최대 4회)는 통과해야 한다
   4) 차단 후엔 플래그 파일 — 쉘이 담당 (여기선 판정만)
 """
 
@@ -74,26 +75,31 @@ def test_boot_failure_streak_reset_by_runtime_death():
     assert action == "RESTART"
 
 
-def test_three_deaths_in_window_break():
-    # 규칙 3: 30분 내 3회 (종류 무관) → 차단
-    history = [
-        rec(T0, "runtime_death"),
-        rec(T0 + 600, "runtime_death"),
-        rec(T0 + 1200, "runtime_death"),
-    ]
+def test_five_deaths_in_window_break():
+    # 규칙 3: 30분 내 5회 (종류 무관) → 차단
+    history = [rec(T0 + 300 * i, "runtime_death") for i in range(5)]
     action, reason = decide(history=history, now=T0 + 1200)
     assert action == "BREAK"
-    assert "3회" in reason
+    assert "5회" in reason
 
 
-def test_three_deaths_spread_out_restart():
-    # 30분 밖으로 흩어진 3회는 정상 재기동
+def test_four_deaths_in_window_restart():
+    # 설정 수정 한 회차에 4회까지 수동 재시작하는 일이 있다 — 차단되면 안 된다.
+    history = [rec(T0 + 300 * i, "runtime_death") for i in range(4)]
+    action, _ = decide(history=history, now=T0 + 900)
+    assert action == "RESTART"
+
+
+def test_five_deaths_spread_out_restart():
+    # 30분 밖으로 흩어진 5회는 정상 재기동
     history = [
         rec(T0, "runtime_death"),
         rec(T0 + 4000, "runtime_death"),
         rec(T0 + 8000, "runtime_death"),
+        rec(T0 + 12000, "runtime_death"),
+        rec(T0 + 16000, "runtime_death"),
     ]
-    action, _ = decide(history=history, now=T0 + 8000)
+    action, _ = decide(history=history, now=T0 + 16000)
     assert action == "RESTART"
 
 
